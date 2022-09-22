@@ -26,7 +26,14 @@ d. `g:all`消费者只将原始消息体转存`gs:<gid>`，用户队列使用和
 
 
 ## 消息已读
-### 单聊
+
+### 未读消息粒度只到联系人级别
+1. 使用`r:<uid>` sorted set, 存放用户未读消息，如果全部已读`score`就是0
+2. 未读消息列表基本和联系人列表数据结构一致
+
+
+### ~~未读消息粒度到消息级别~~
+#### ~~单聊~~
 1. 用户的stream增加group
 2. 用户将consumer挂载到group下面
 3. 用户读取消息逻辑：
@@ -35,8 +42,9 @@ b. 再从`c:<uid>`读取联系人列表（这个是否真的有必要？）
 c. 直接从`s:<uid>`倒序读取消息，如果在未读消息列表，就标记未读
 
 
-### 群聊
-TODO 
+#### ~~群聊~~
+实际上群聊消息也会出现在用户自己的队列里面
+
 
 ## 历史消息
 
@@ -56,12 +64,160 @@ TODO
 3. 然后异步倒序获取消息（如果是自己发送的消息通过`user`字段从其他用户队列获取原始消息，如果是群消息通过`group`字段从群队列获取原始消息）
 4. 同时开启一个while循环以block模式监听最新消息，如果接收到最新消息就发送给前端（接收到的消息也走相同的逻辑拿原始消息）
 5. 前端直接通过websocket发送消息，如果是单聊消息，往对方队列存原始消息，同时在自己队列存一个不包含原始消息的消息体。
+6. 如果是群聊消息，往
+
+### 动作
+> 抽象一些动作（差不多也对应一个接口动作）
+> 往统一消息中心g:all（后续改成mcenter）发消息触发动作
+1. 初始化用户（创建用户）
+```
+create_user(uid?: string, name: string, avatar?: string, **kwargs)
+
+HMSET u:<uid> name <name> avatar <avatar> ...
+// c:<uid>, 和r:<uid> 这两个sorted set可以不用提前创建
+```
+2. 添加联系人
+```
+contact(uid: string, tuid: string)
+
+ZADD u:<uid> timestamp target
+ZADD r:<uid> 0 target
+
+send(tuid, uid, action='contact', uid="<uid>", tuid="<tuid>")
+```
+3. 发送单聊消息
+```
+send(uid: string, tuid: string, **kwargs)
+
+// 真实的消息内容
+mid = XADD s:<tuid> * <**kwargs>
+// 未读消息+1
+ZADD r:<tuid> INCR 1 "<uid>"
+// 代表是从另一个队列转发的消息，在另一个队列的id是mid
+// 前端看起来就相当于展示我发送出去的消息
+XADD s:<uid> mid FW "s:<tuid>"
+```
+
+4. 创建群
+```
+create_group(uid: string, gid: string, name: string, avatar: string)
+HMSET gi:<gid> master "<uid>" name "<name>" avatar "<avatar>"
+
+join(gid, uid)
+```
+
+5. 加入群
+```
+join(gid: string, uid: string)
+
+// 加联系人
+ZADD u:<uid> timestamp gid
+ZADD r:<uid> 0 gid
+
+// 加组
+SADD gm:<gid> uid
+// 群发通知消息
+gsend(uid, gid, action='join', group="<gid>")
+// XADD gs:<gid> * user "<uid>" action "join" group "<gid>"
+```
+
+6. 发送群聊消息
+```
+gsend(uid, gid, **kwargs)
+// 群内发消息
+mid = XADD gs:<gid> * user "<uid>" (**kwargs)
+// 同时将消息转发给群内用户
+for u in (SMEMBERS gm:<gid>):
+  XADD s:<u> mid FW "gs:<gid>"
+  ZADD r:<u> INCR 1 "gs:<gid>"
+```
+
+7. 退群
+```
+quit(uid, gid)
+
+SREM gm:<gid> uid
+// 群发通知消息
+gsend(uid, gid, action='quit', group="<gid>")
+// XADD gs:<gid> * user "<uid>" action "quit" group "<gid>"
+```
+
+8. 删好友
+```
+ulink(uid, tuid)
+
+ZREM c:<uid> tuid
+
+// 不发消息?发消息可以提醒前端删除当前联系人
+send(tuid, uid, action='unlink', uid="<uid>", tuid="<tuid>")
+```
+
+9. 获取历史消息
+```
+history(uid, last="+")
+
+// 100条为单位倒序获取消息
+last = "+"
+while true:
+  messages = XREVRANGE s:<uid> <last> - COUNT 100
+  if len(messages) == 0:
+    break
+  for message in messages
+    last = message.id
+    if message.FW:
+      // 获取原始消息内容
+      m = XREAD COUNT 1 STREAMS <message.FW> message.id
+      write(m)
+    else:
+      write(message)
+    end
+  end
+end
+```
+9.1 获取新消息
+> 客户端有缓存消息的时候，使用一个之前的消息id开始读取后续消息
+```
+recive(uid, start="$")
+
+while true:
+  messages = XREAD BLOCK 3000 COUNT 100 STREAMS s:<uid> start
+  for message in messages
+    // 这里同前面的逻辑
+    write(get_message(message))
+  end
+end
+```
+10. 获取个人信息
+```
+user(uid)
+
+HGETALL u:<uid>
+```
+11. 获取群信息
+```
+group(gid)
+
+HGETALL gi:<gid>
+SMEMBERS gm:<gid>
+```
+12. 消息已读
+```
+read(uid, tuid|gid)
+
+ZADD 0 uid <tuid|gid>
+```
+
+
+### lua script
+TODO
+前面的每一个动作几乎都可以写成一个lua函数
+调用lua函数，减少和redis之间通信次数是比较高效的
+使用lua脚本还可以减少设计那个消费者
 
 
 ## 服务
 1. 一个websocket server
 2. 同时启动一个`g:all`消费者负责转发消息
-
 
 
 
