@@ -218,8 +218,7 @@ TODO
 1. recive需要block api，在module里面实现block api看起来不是很好处理
 2. send和gsend需要调用XADD，在C语言里面不是很好处理变长参数透传逻辑。
 
-1. 可以通过RedisModule_BlockClient实现
-1.1 需要配合RedisModule_SubscribeToKeyspaceEvents, block client的时候将当前的client以及key放到一个队列中，然后监听到stream的xadd事件，再拿到对应的client返回数据
+1. 可以通过使用RedisModule_BlockClientOnKeys实现
 2. 可以通过传递一个argv和argc实现
 
 ## 服务
