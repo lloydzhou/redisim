@@ -103,6 +103,62 @@ int SendCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   return RedisModule_ReplyWithCallReply(ctx, rep);
 }
 
+/**
+ * IM.USER  [uid] (get user info)
+ * IM.USER  [<uid>] [field value] [field value ... ] (create user)
+ */
+int UserCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc < 2) {
+    return RedisModule_WrongArity(ctx);
+  }
+  if (argc % 2 == 1) {
+    return RedisModule_WrongArity(ctx);
+  }
+
+  RedisModule_AutoMemory(ctx);
+
+  // local mid = redis.call('XADD', 's:' .. tuid, '*', unpack(ARGV))
+  RedisModuleString **args = calloc(argc-1, sizeof(RedisModuleString*));
+
+  args[0] = RedisModule_CreateStringPrintf(ctx, "u:%s", RedisModule_StringPtrLen(argv[1], NULL));
+  if (argc == 2) {
+    return RedisModule_ReplyWithCallReply(ctx, RedisModule_Call(ctx, "HGETALL", "s", args[0]));
+  }
+  for (int i=2; i<argc; i++){
+    args[i-1] = RedisModule_CreateStringFromString(ctx, argv[i]);
+  }
+  RedisModuleCallReply* rep = RedisModule_Call(ctx, "HMSET", "v", args, argc - 1);
+  return RedisModule_ReplyWithCallReply(ctx, rep);
+}
+
+/**
+ * IM.GROUP  [uid] (get user info)
+ * IM.GROUP  [<uid>] [field value] [field value ... ] (create user)
+ */
+int GroupCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc < 2) {
+    return RedisModule_WrongArity(ctx);
+  }
+  if (argc % 2 == 1) {
+    return RedisModule_WrongArity(ctx);
+  }
+
+  RedisModule_AutoMemory(ctx);
+
+  // local mid = redis.call('XADD', 's:' .. tuid, '*', unpack(ARGV))
+  RedisModuleString **args = calloc(argc-1, sizeof(RedisModuleString*));
+
+  args[0] = RedisModule_CreateStringPrintf(ctx, "u:%s", RedisModule_StringPtrLen(argv[1], NULL));
+  if (argc == 2) {
+    return RedisModule_ReplyWithCallReply(ctx, RedisModule_Call(ctx, "HGETALL", "s", args[0]));
+  }
+  for (int i=2; i<argc; i++){
+    args[i-1] = RedisModule_CreateStringFromString(ctx, argv[i]);
+  }
+  RedisModuleCallReply* rep = RedisModule_Call(ctx, "HMSET", "v", args, argc - 1);
+  return RedisModule_ReplyWithCallReply(ctx, rep);
+}
+
 int RedisModule_OnLoad(RedisModuleCtx *ctx) {
 
   // Register the module itself
@@ -111,7 +167,6 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx) {
     return REDISMODULE_ERR;
   }
 
-  // register im.get - the default registration syntax
   if (RedisModule_CreateCommand(ctx, "im.recive", ReciveCommandKey, "", 0, 0, 0) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
@@ -120,9 +175,13 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx) {
     return REDISMODULE_ERR;
   }
 
-  // register im.send - using the shortened utility registration macro
-  // RMUtil_RegisterWriteDenyOOMCmd(ctx, "im.send", SendCommand);
+  if (RedisModule_CreateCommand(ctx, "im.user", UserCommand, "", 0, 0, 0) == REDISMODULE_ERR) {
+    return REDISMODULE_ERR;
+  }
 
+  if (RedisModule_CreateCommand(ctx, "im.group", GroupCommand, "", 0, 0, 0) == REDISMODULE_ERR) {
+    return REDISMODULE_ERR;
+  }
 
   return REDISMODULE_OK;
 }
