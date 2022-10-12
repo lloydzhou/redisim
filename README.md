@@ -177,7 +177,7 @@ end
 9.1 获取新消息
 > 客户端有缓存消息的时候，使用一个之前的消息id开始读取后续消息
 ```
-recive(uid, start="$")
+recive(uid, start="0-0")
 
 while true:
   messages = XREAD BLOCK 3000 COUNT 100 STREAMS s:<uid> start

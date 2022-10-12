@@ -49,6 +49,9 @@ int ReciveCommandKey(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (argc < 2 || argc > 8) {
     return RedisModule_WrongArity(ctx);
   }
+
+  RedisModule_AutoMemory(ctx);
+
   RedisModuleString *user_stream_key = RedisModule_CreateStringPrintf(ctx, "s:%s", RedisModule_StringPtrLen(argv[1], NULL));
 
   long long block = 10000;
@@ -62,6 +65,44 @@ int ReciveCommandKey(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   return REDISMODULE_OK;
 }
 
+/**
+ * IM.SEND  [<uid>] [<tuid>] [field value] [field value ... ]
+ */
+int SendCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc < 3) {
+    return RedisModule_WrongArity(ctx);
+  }
+  if (argc % 2 == 0) {
+    return RedisModule_WrongArity(ctx);
+  }
+
+  RedisModule_AutoMemory(ctx);
+
+  // local mid = redis.call('XADD', 's:' .. tuid, '*', unpack(ARGV))
+  RedisModuleString **args = calloc(argc-1, sizeof(RedisModuleString*));
+
+  args[0] = RedisModule_CreateStringPrintf(ctx, "s:%s", RedisModule_StringPtrLen(argv[2], NULL));
+  args[1] = RedisModule_CreateStringPrintf(ctx, "*");
+  for (int i=3; i<argc; i++){
+    args[i-1] = RedisModule_CreateStringFromString(ctx, argv[i]);
+  }
+  RedisModuleCallReply* rep = RedisModule_Call(ctx, "XADD", "v", args, argc - 1);
+
+  // redis.call('XADD', 's:' .. uid, mid, 'FW', 's:' .. tuid)
+  RedisModuleString *uid = RedisModule_CreateStringPrintf(ctx, "s:%s", RedisModule_StringPtrLen(argv[1], NULL));
+  RedisModuleString *mid = RedisModule_CreateStringFromCallReply(rep);
+  // RedisModuleCallReply *fwrep = RedisModule_Call(ctx, "XADD", "sscs", uid, mid, "FW", args[0]);
+  RedisModule_Call(ctx, "XADD", "sscs", uid, mid, "FW", args[0]);
+
+  // redis.call('ZADD', 'r:' .. tuid, 'INCR', 1, uid)
+  RedisModuleString *rtuid = RedisModule_CreateStringPrintf(ctx, "r:%s", RedisModule_StringPtrLen(argv[2], NULL));
+  // RedisModuleCallReply* zrep = RedisModule_Call(ctx, "ZADD", "s", rtuid, "INCR", 1, argv[1]);
+  RedisModule_Call(ctx, "ZADD", "scls", rtuid, "INCR", 1, argv[1]);
+
+  // return mid
+  return RedisModule_ReplyWithCallReply(ctx, rep);
+}
+
 int RedisModule_OnLoad(RedisModuleCtx *ctx) {
 
   // Register the module itself
@@ -72,6 +113,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx) {
 
   // register im.get - the default registration syntax
   if (RedisModule_CreateCommand(ctx, "im.recive", ReciveCommandKey, "", 0, 0, 0) == REDISMODULE_ERR) {
+    return REDISMODULE_ERR;
+  }
+
+  if (RedisModule_CreateCommand(ctx, "im.send", SendCommand, "", 0, 0, 0) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
 
