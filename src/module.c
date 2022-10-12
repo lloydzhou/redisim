@@ -5,87 +5,61 @@
 #include "./rmutil/util.h"
 #include "./rmutil/strings.h"
 #include "./rmutil/test_util.h"
-#include "./rmutil/periodic.c"
-
-#define C2S(ctx, s) RedisModule_CreateString(ctx, s, strlen(s))
-
-int ListResponse(RedisModuleCtx *ctx, const char *fmt, ...) {
-  va_list argv;
-  int i = 0;
-  // int argc = 0;
-  RedisModuleString *s;
-  char *c;
-  long long l;
-  unsigned u;
-  va_start(argv, fmt);
-  // RedisModule_Log(ctx, "warning", "fmt %s", fmt);
-  RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
-  while(*fmt) {
-    // RedisModule_Log(ctx, "warning", "fmt %d %s", i, fmt);
-    switch(*fmt) {
-      case 's':
-        s = va_arg(argv, RedisModuleString*);
-        RedisModule_ReplyWithString(ctx, s);
-        // RedisModule_Log(ctx, "warning", "argv %d %s", i, RedisModule_StringPtrLen(s, NULL));
-        break;
-      case 'c':
-        c = va_arg(argv, char*);
-        RedisModule_ReplyWithSimpleString(ctx, c);
-        // RedisModule_Log(ctx, "warning", "argv %d %s", i, c);
-        break;
-      case 'l':
-        l = va_arg(argv, long long);
-        RedisModule_ReplyWithLongLong(ctx, l);
-        // RedisModule_Log(ctx, "warning", "argv %d %lld", i, l);
-        break;
-      case 'u':
-        u = va_arg(argv, unsigned);
-        RedisModule_ReplyWithLongLong(ctx, u);
-        // RedisModule_Log(ctx, "warning", "argv %d %u", i, u);
-        break;
-      default:
-        break;
-    }
-    fmt++;
-    i++;
-  }
-  RedisModule_ReplySetArrayLength(ctx, i);
-  // RedisModule_Log(ctx, "warning", "argc %d", i);
-  va_end(argv);
-  return REDISMODULE_OK;
-}
 
 /**
- * IM.RECIVE  [<uid>] START [start]
+ * IM.RECIVE  [<uid>] BLOCK [ms] COUNT [count] START [start]
+ * start 0-0
  */
-
-int ReciveCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  // RedisModule_Log(ctx, "warning", "argc %d", argc);
-  if (argc < 2 || argc > 4) {
+int recive_reply_process(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc < 2 || argc > 8) {
     return RedisModule_WrongArity(ctx);
   }
   RedisModuleString *user_stream_key = RedisModule_CreateStringPrintf(ctx, "s:%s", RedisModule_StringPtrLen(argv[1], NULL));
+
+  long long count = 20;
+  RMUtil_ParseArgsAfter("COUNT", argv, argc, "l", &count);
+
   RedisModuleString *start = NULL;
   RMUtil_ParseArgsAfter("START", argv, argc, "s", &start);
-  if (start == NULL && argc == 3) {
-    start = argv[2];
-  }
   if (start == NULL) {
     RedisModule_Log(ctx, "warning", "No start id found");
     return RedisModule_ReplyWithError(ctx, "NEED START");
   }
-
-  RedisModuleCallReply *rep = RedisModule_Call(ctx, "XREAD", "clclcss", "BLOCK", 3000, "COUNT", 100, "STREAMS", user_stream_key, start);
-  RMUTIL_ASSERT_NOERROR(ctx, rep)
-  return RedisModule_ReplyWithCallReply(ctx, rep);
+  RedisModuleCallReply *rep = RedisModule_Call(ctx, "XREAD", "clcss", "COUNT", count, "STREAMS", user_stream_key, start);
+  // RMUTIL_ASSERT_NOERROR(ctx, rep);
+  RedisModule_Log(ctx, "warning", "rep type %d", RedisModule_CallReplyType(rep));
+  if ((rep != NULL) && (RedisModule_CallReplyType(rep) != REDISMODULE_REPLY_NULL)) {
+    return RedisModule_ReplyWithCallReply(ctx, rep);
+  }
+  return REDISMODULE_ERR;
+}
+int recive_reply_callback(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  RedisModuleString *keyname = RedisModule_GetBlockedClientReadyKey(ctx);
+  RedisModule_Log(ctx, "warning", "recive_reply_callback keyname %s %d", RedisModule_StringPtrLen(keyname, NULL), argc);
+  if(recive_reply_process(ctx, argv, argc) != REDISMODULE_OK) {
+    RedisModule_ReplyWithNull(ctx);
+  }
+  return REDISMODULE_OK;
+}
+int recive_timeout_callback(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  return RedisModule_ReplyWithNull(ctx);
 }
 
-/**
- * IM.SEND [<uid>]
- */
+int ReciveCommandKey(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc < 2 || argc > 8) {
+    return RedisModule_WrongArity(ctx);
+  }
+  RedisModuleString *user_stream_key = RedisModule_CreateStringPrintf(ctx, "s:%s", RedisModule_StringPtrLen(argv[1], NULL));
 
-int SendCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  return REDISMODULE_ERR;
+  long long block = 10000;
+  RMUtil_ParseArgsAfter("BLOCK", argv, argc, "l", &block);
+
+  int res = recive_reply_process(ctx, argv, argc);
+  if (res != REDISMODULE_OK && block > 0) {
+    RedisModule_BlockClientOnKeys(ctx, recive_reply_callback, recive_timeout_callback, NULL, block, &user_stream_key, 1, NULL);
+  }
+
+  return REDISMODULE_OK;
 }
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx) {
@@ -97,13 +71,13 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx) {
   }
 
   // register im.get - the default registration syntax
-  if (RedisModule_CreateCommand(ctx, "im.recive", ReciveCommand, "readonly",
-                                1, 1, 1) == REDISMODULE_ERR) {
+  if (RedisModule_CreateCommand(ctx, "im.recive", ReciveCommandKey, "", 0, 0, 0) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
 
   // register im.send - using the shortened utility registration macro
-  RMUtil_RegisterWriteDenyOOMCmd(ctx, "im.send", SendCommand);
+  // RMUtil_RegisterWriteDenyOOMCmd(ctx, "im.send", SendCommand);
+
 
   return REDISMODULE_OK;
 }

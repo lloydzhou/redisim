@@ -80,7 +80,7 @@ HMSET u:<uid> name <name> avatar <avatar> ...
 ```
 contact(uid: string, tuid: string)
 
-ZADD u:<uid> timestamp target
+ZADD c:<uid> timestamp target
 ZADD r:<uid> 0 target
 
 send(tuid, uid, action='contact', uid="<uid>", tuid="<tuid>")
@@ -214,6 +214,13 @@ TODO
 调用lua函数，减少和redis之间通信次数是比较高效的
 使用lua脚本还可以减少设计那个消费者
 
+### redis module
+1. recive需要block api，在module里面实现block api看起来不是很好处理
+2. send和gsend需要调用XADD，在C语言里面不是很好处理变长参数透传逻辑。
+
+1. 可以通过RedisModule_BlockClient实现
+1.1 需要配合RedisModule_SubscribeToKeyspaceEvents, block client的时候将当前的client以及key放到一个队列中，然后监听到stream的xadd事件，再拿到对应的client返回数据
+2. 可以通过传递一个argv和argc实现
 
 ## 服务
 1. 一个websocket server

@@ -20,6 +20,15 @@ inline int Vector_Get(Vector *v, size_t pos, void *ptr) {
   return 1;
 }
 
+inline int Vector_Del(Vector *v, size_t pos) {
+  // return 0 if pos is out of bounds
+  if (pos >= v->top) {
+    return 0;
+  }
+
+  return __vector_PutPtr(v, pos, NULL);
+}
+
 /* Get the element at the end of the vector, decreasing the size by one */
 inline int Vector_Pop(Vector *v, void *ptr) {
   if (v->top > 0) {
@@ -41,7 +50,13 @@ inline int __vector_PutPtr(Vector *v, size_t pos, void *elem) {
   if (elem) {
     memcpy(v->data + pos * v->elemSize, elem, v->elemSize);
   } else {
-    memset(v->data + pos * v->elemSize, 0, v->elemSize);
+    // memset(v->data + pos * v->elemSize, 0, v->elemSize);
+    // remove current element
+    // 1. v->top move to v->data[pos]
+    // 2. v->top--
+    memcpy(v->data + (pos * v->elemSize), v->data + (v->top * v->elemSize), v->elemSize);
+    v->top--;
+    return -1;
   }
   // move the end offset to pos if we grew
   if (pos >= v->top) {

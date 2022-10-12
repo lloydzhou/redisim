@@ -37,6 +37,9 @@ int __vector_PutPtr(Vector *v, size_t pos, void *elem);
 */
 int Vector_Get(Vector *v, size_t pos, void *ptr);
 
+/* remove element on pos */
+int Vector_Del(Vector *v, size_t pos);
+
 /* Get the element at the end of the vector, decreasing the size by one */
 int Vector_Pop(Vector *v, void *ptr);
 
