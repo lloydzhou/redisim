@@ -117,8 +117,7 @@ ZADD r:<uid> 0 gid
 // 加组
 SADD gm:<gid> uid
 // 群发通知消息
-gsend(uid, gid, action='join', group="<gid>")
-// XADD gs:<gid> * user "<uid>" action "join" group "<gid>"
+gsend(uid, gid, action='join', group="<gid>", uid=uid)
 ```
 
 6. 发送群聊消息
@@ -137,6 +136,8 @@ for u in (SMEMBERS gm:<gid>):
 quit(uid, gid)
 
 SREM gm:<gid> uid
+// 把群从联系人删除
+ulink(uid, tuid)
 // 群发通知消息
 gsend(uid, gid, action='quit', group="<gid>")
 // XADD gs:<gid> * user "<uid>" action "quit" group "<gid>"
@@ -147,6 +148,7 @@ gsend(uid, gid, action='quit', group="<gid>")
 ulink(uid, tuid)
 
 ZREM c:<uid> tuid
+ZREM r:<uid> s:tuid
 
 // 不发消息?发消息可以提醒前端删除当前联系人
 send(tuid, uid, action='unlink', uid="<uid>", tuid="<tuid>")
