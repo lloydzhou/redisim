@@ -11,7 +11,43 @@
 5. `gs:<gid>` stream, 用于接收/发送群消息
 6. `gi:<gid>` hash, 存放群信息，例如name，还有一些配置信息（例如加群是否需要验证？）
 
+## redis module
+> redis module实现IM
+
+### IM.RECIVE
+> IM.RECIVE [<uid>] BLOCK [ms] COUNT [count] START [start]
+> get messages
+
+### IM.SEND
+> IM.SEND [<uid>] [<tuid>] [field value] [field value ... ]
+
+### IM.GSEND
+> IM.GSEND [<uid>] [<gid>] [field value] [field value ... ]
+
+### IM.USER
+> IM.USER  [uid] (get user info)
+> IM.USER  [<uid>] [field value] [field value ... ] (create user or update user info)
+
+### IM.GROUP
+> IM.GROUP [gid] (get group info)
+> IM.GROUP [gid] [uid] [field value] [field value ... ] (create group or update group info)
+
+### IM.LINK
+> IM.LINK [uid] [tuid] (add to user contact list)
+
+### IM.UNLINK
+> IM.UNLINK [uid] [tuid] (remove from user contact list)
+
+### IM.JOIN
+> IM.LINK [uid] [gid] (add to user group)
+
+### IM.QUIT
+> IM.QUIT [uid] [gid] (remove from user group)
+
+
 ## consumer
+
+> 使用redis module 实现，无需额外增加消费者
 
 1. group consumer --> `gs:<gid>` 监听群消息，将群消息转发到`s:<uid>`
 > 考虑到多个群需要多个消费者的情况：

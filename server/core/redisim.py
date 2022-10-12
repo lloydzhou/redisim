@@ -29,3 +29,12 @@ async def login(user_id, passwd=None, *args, **kwargs):
     return res
 
 
+async def recive(user_id, **kwargs):
+    pool = await get_redis_pool()
+    res = await pool.execute("IM.RECIVE", *merge_args(user_id, **kwargs))
+    if isinstance(res, list):
+        channel, messages = res[0]
+        return messages
+    return []
+
+

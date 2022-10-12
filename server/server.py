@@ -12,7 +12,7 @@ from tornado.options import options, parse_command_line
 
 from config import load_config
 from core.route import route, routes
-from core.redisim import login
+from core.redisim import login, recive
 
 load_config()
 parse_command_line()
@@ -31,6 +31,15 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         print(user_id, user)
         self.write_message(json.dumps(user))
+        start = 0
+        while not self._on_close_called:
+            print('self._on_close_called', self.ws_connection, self._on_close_called)
+            print('recive')
+            messages = await recive(user_id, block=10000, count=10, start=start)
+            for mid, message in messages:
+                start = mid
+                print(mid, message)
+                self.write_message(json.dumps({'id': mid, 'message': message}))
 
     def on_message(self, message):
         self.write_message(u"You said: " + message)
