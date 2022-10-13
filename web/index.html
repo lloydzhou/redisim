@@ -40,7 +40,7 @@
               console.log('action', action)
               if (action == 'link') {
                 state.contacts.push({
-                  tuid,
+                  tuid: uid == state.uid ? tuid : uid,
                   avatar: './A.jpg',
                 })
               }
@@ -64,7 +64,7 @@
     })
     const onChange = e => {
       state.uid = e.target.value
-      state.tuid = e.target.value
+      // state.tuid = e.target.value
       connect(state.uid)
     }
 
