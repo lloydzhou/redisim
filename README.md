@@ -15,34 +15,44 @@
 > redis module实现IM
 
 ### IM.RECIVE
-> IM.RECIVE [<uid>] BLOCK [ms] COUNT [count] START [start]
-> get messages
+> IM.RECIVE [uid] BLOCK [ms] COUNT [count] START [start]  
+> 获取历史消息，以及监听新的消息
 
 ### IM.SEND
-> IM.SEND [<uid>] [<tuid>] [field value] [field value ... ]
+> IM.SEND [uid] [tuid] [field value] [field value ... ]  
+> 发送单聊消息
 
 ### IM.GSEND
-> IM.GSEND [<uid>] [<gid>] [field value] [field value ... ]
+> IM.GSEND [uid] [gid] [field value] [field value ... ]  
+> 发送群聊消息
 
 ### IM.USER
-> IM.USER  [uid] (get user info)
-> IM.USER  [<uid>] [field value] [field value ... ] (create user or update user info)
+> IM.USER  [uid]  
+> (get user info)  获取用户信息  
+> IM.USER  [<uid>] [field value] [field value ... ]  
+> (create user or update user info)
 
 ### IM.GROUP
-> IM.GROUP [gid] (get group info)
-> IM.GROUP [gid] [uid] [field value] [field value ... ] (create group or update group info)
+> IM.GROUP [gid]  
+> (get group info)  
+> IM.GROUP [gid] [uid] [field value] [field value ... ]  
+> (create group or update group info)
 
 ### IM.LINK
-> IM.LINK [uid] [tuid] (add to user contact list)
+> IM.LINK [uid] [tuid]  
+> (add to user contact list)
 
 ### IM.UNLINK
-> IM.UNLINK [uid] [tuid] (remove from user contact list)
+> IM.UNLINK [uid] [tuid]  
+> (remove from user contact list)
 
 ### IM.JOIN
-> IM.LINK [uid] [gid] (add to user group)
+> IM.LINK [uid] [gid]  
+> (add to user group)
 
 ### IM.QUIT
-> IM.QUIT [uid] [gid] (remove from user group)
+> IM.QUIT [uid] [gid]  
+> (remove from user group)
 
 
 ## consumer
