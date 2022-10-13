@@ -29,7 +29,7 @@
 ### IM.USER
 > IM.USER  [uid]  
 > (get user info)  获取用户信息  
-> IM.USER  [<uid>] [field value] [field value ... ]  
+> IM.USER  [uid] [field value] [field value ... ]  
 > (create user or update user info)
 
 ### IM.GROUP
