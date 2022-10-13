@@ -6,6 +6,8 @@
 #include "./rmutil/strings.h"
 #include "./rmutil/test_util.h"
 
+
+
 /**
  * IM.RECIVE  [<uid>] BLOCK [ms] COUNT [count] START [start]
  * start 0-0
@@ -27,15 +29,14 @@ int recive_reply_process(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
   }
   RedisModuleCallReply *rep = RedisModule_Call(ctx, "XREAD", "clcss", "COUNT", count, "STREAMS", user_stream_key, start);
   // RMUTIL_ASSERT_NOERROR(ctx, rep);
-  RedisModule_Log(ctx, "warning", "rep type %d", RedisModule_CallReplyType(rep));
   if ((rep != NULL) && (RedisModule_CallReplyType(rep) != REDISMODULE_REPLY_NULL)) {
     return RedisModule_ReplyWithCallReply(ctx, rep);
   }
   return REDISMODULE_ERR;
 }
 int recive_reply_callback(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  RedisModuleString *keyname = RedisModule_GetBlockedClientReadyKey(ctx);
-  RedisModule_Log(ctx, "warning", "recive_reply_callback keyname %s %d", RedisModule_StringPtrLen(keyname, NULL), argc);
+  // RedisModuleString *keyname = RedisModule_GetBlockedClientReadyKey(ctx);
+  // RedisModule_Log(ctx, "warning", "recive_reply_callback keyname %s %d", RedisModule_StringPtrLen(keyname, NULL), argc);
   if(recive_reply_process(ctx, argv, argc) != REDISMODULE_OK) {
     RedisModule_ReplyWithNull(ctx);
   }
@@ -68,14 +69,17 @@ int ReciveCommandKey(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 // only process logic not reply
 RedisModuleCallReply* _GroupSendCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // mid = XADD gs:<gid> * user "<uid>" (**kwargs)
-  RedisModuleString **args = calloc(argc-1, sizeof(RedisModuleString*));
+  // IM.GSEND  [<uid>] [<gid>] [field value] [field value ... ]
+  RedisModuleString **args = calloc(argc+1, sizeof(RedisModuleString*));
 
   args[0] = RedisModule_CreateStringPrintf(ctx, "gs:%s", RedisModule_StringPtrLen(argv[2], NULL));
   args[1] = RedisModule_CreateStringPrintf(ctx, "*");
+  args[2] = RedisModule_CreateStringPrintf(ctx, "uid");
+  args[3] = argv[1];
   for (int i=3; i<argc; i++){
-    args[i-1] = RedisModule_CreateStringFromString(ctx, argv[i]);
+    args[i+1] = RedisModule_CreateStringFromString(ctx, argv[i]);
   }
-  RedisModuleCallReply* rep = RedisModule_Call(ctx, "XADD", "v", args, argc - 1);
+  RedisModuleCallReply* rep = RedisModule_Call(ctx, "XADD", "v", args, argc + 1);
   RedisModuleString *mid = RedisModule_CreateStringFromCallReply(rep);
 
   RedisModuleString *gmid = RedisModule_CreateStringPrintf(ctx, "gm:%s", RedisModule_StringPtrLen(argv[2], NULL));
@@ -85,11 +89,10 @@ RedisModuleCallReply* _GroupSendCommand(RedisModuleCtx *ctx, RedisModuleString *
   // for u in (SMEMBERS gm:<gid>):
   //   XADD s:<u> mid FW "gs:<gid>"
   //   ZADD r:<u> INCR 1 "gs:<gid>"
-  RedisModule_Log(ctx, "warning", "FW %s %s", RedisModule_StringPtrLen(gmid, NULL), RedisModule_StringPtrLen(mid, NULL));
   for (int i = 0; i < RedisModule_CallReplyLength(mrep); i++) {
     u = RedisModule_CreateStringFromCallReply(RedisModule_CallReplyArrayElement(mrep, i));
     ui = RedisModule_CreateStringPrintf(ctx, "s:%s", RedisModule_StringPtrLen(u, NULL));
-    RedisModule_Log(ctx, "warning", "FW %s %s", RedisModule_StringPtrLen(ui, NULL), RedisModule_StringPtrLen(mid, NULL));
+    // RedisModule_Log(ctx, "warning", "FW %s %s", RedisModule_StringPtrLen(ui, NULL), RedisModule_StringPtrLen(mid, NULL));
     RedisModule_Call(ctx, "XADD", "sscs", ui, mid, "FW", args[0]);
     if (!RMUtil_StringEquals(u, argv[1])) {
       // redis.call('ZADD', 'r:' .. u, 'INCR', 1, gs:<gid>)
@@ -97,7 +100,6 @@ RedisModuleCallReply* _GroupSendCommand(RedisModuleCtx *ctx, RedisModuleString *
       RedisModule_Call(ctx, "ZADD", "scls", rtuid, "INCR", 1, args[0]);
     }
   }
-  RedisModule_Log(ctx, "warning", "FW %s %s", RedisModule_StringPtrLen(gmid, NULL), RedisModule_StringPtrLen(mid, NULL));
   return rep;
 }
 
@@ -120,14 +122,16 @@ int GroupSendCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
 RedisModuleCallReply* _SendCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // local mid = redis.call('XADD', 's:' .. tuid, '*', unpack(ARGV))
-  RedisModuleString **args = calloc(argc-1, sizeof(RedisModuleString*));
+  RedisModuleString **args = calloc(argc+1, sizeof(RedisModuleString*));
 
   args[0] = RedisModule_CreateStringPrintf(ctx, "s:%s", RedisModule_StringPtrLen(argv[2], NULL));
   args[1] = RedisModule_CreateStringPrintf(ctx, "*");
+  args[2] = RedisModule_CreateStringPrintf(ctx, "uid");
+  args[3] = argv[1];
   for (int i=3; i<argc; i++){
-    args[i-1] = RedisModule_CreateStringFromString(ctx, argv[i]);
+    args[i+1] = RedisModule_CreateStringFromString(ctx, argv[i]);
   }
-  RedisModuleCallReply* rep = RedisModule_Call(ctx, "XADD", "v", args, argc - 1);
+  RedisModuleCallReply* rep = RedisModule_Call(ctx, "XADD", "v", args, argc + 1);
 
   // redis.call('XADD', 's:' .. uid, mid, 'FW', 's:' .. tuid)
   RedisModuleString *uid = RedisModule_CreateStringPrintf(ctx, "s:%s", RedisModule_StringPtrLen(argv[1], NULL));
