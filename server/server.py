@@ -13,7 +13,7 @@ from tornado.options import options, parse_command_line
 
 from config import load_config
 from core.route import route, routes
-from core.redisim import login, recive
+from core.redisim import login, recive, action as im_action
 
 load_config()
 parse_command_line()
@@ -44,10 +44,19 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         # do not block cpu
         asyncio.ensure_future(loop())
 
-    def on_message(self, message):
+    async def on_message(self, message):
         print("WebSocket message", message)
-        self.write_message(u"You said: " + message)
-        # self.ping()
+        # self.write_message(u"You said: " + message)
+        try:
+            message = json.loads(message)
+            if 'action' in message:
+                action, id, params = message['action'], message.get('id'), message.get('params', [])
+                if action.upper() in ['SEND', 'GSEND', 'USER', 'GROUP', 'LINK', 'UNLINK', 'JOIN', 'QUIT']:
+                    response = await im_action('IM.' + action.upper(), *params)
+                    self.write_message({'id': id, 'response': response})
+                    print(response)
+        except Exception as e:
+            logging.error('error parse message %s %r', message, e)
 
     def on_close(self, *args, **kwargs):
         print("WebSocket closed", self, args, kwargs)

@@ -56,3 +56,7 @@ async def recive(user_id, **kwargs):
     yield None, None
 
 
+async def action(command, *params):
+    pool = await get_redis_pool()
+    return await pool.execute(command, *params)
+
