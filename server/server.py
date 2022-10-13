@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import json
 
@@ -23,7 +24,6 @@ tornado.log.enable_pretty_logging()
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     async def open(self, *args, **kwargs):
-        print(dir(self.request))
         print("WebSocket opened", self, self.request, self.request.headers, args, kwargs)
         user_id = self.get_argument('user_id')
 
@@ -31,17 +31,22 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         print(user_id, user)
         self.write_message(json.dumps(user))
-        start = 0
-        while not self._on_close_called:
-            print('self._on_close_called', self.ws_connection, self._on_close_called)
-            print('recive')
-            messages = await recive(user_id, block=10000, count=10, start=start)
-            for mid, message in messages:
-                start = mid
-                print(mid, message)
-                self.write_message(json.dumps({'id': mid, 'message': message}))
+
+        async def loop():
+            start = 0
+            while self.ws_connection and not self.ws_connection.is_closing():
+                messages = await recive(user_id, block=10000, count=10, start=start)
+                print(messages)
+                for mid, message in messages:
+                    start = mid
+                    print(mid, message)
+                    self.write_message({'id': mid, 'message': message})
+            print(mid)
+        # do not block cpu
+        asyncio.ensure_future(loop())
 
     def on_message(self, message):
+        print("WebSocket message", message)
         self.write_message(u"You said: " + message)
         # self.ping()
 
