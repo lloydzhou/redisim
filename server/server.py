@@ -24,7 +24,7 @@ tornado.log.enable_pretty_logging()
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     async def open(self, *args, **kwargs):
-        print("WebSocket opened", self, self.request, self.request.headers, args, kwargs)
+        # print("WebSocket opened", self, self.request, self.request.headers, args, kwargs)
         user_id = self.get_argument('user_id')
 
         user = await login(user_id, name='user1')
@@ -60,12 +60,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def on_close(self, *args, **kwargs):
         print("WebSocket closed", self, args, kwargs)
-
-
-@route(r"/api")
-class MainHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.write("Hello, world")
 
 
 if __name__ == "__main__":
