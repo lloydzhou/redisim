@@ -71,7 +71,7 @@ class MainHandler(tornado.web.RequestHandler):
 if __name__ == "__main__":
     # from modules import *
     root_path = dirname(dirname(abspath(__file__)))
-    path = join(root_path, "web")
+    path = join(root_path, "web", "dist")
     log_path = join(root_path, "logs")
 
     @route(r"/(.*)", path=path, default_filename="index.html")
