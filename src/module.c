@@ -96,7 +96,7 @@ RedisModuleCallReply* _GroupSendCommand(RedisModuleCtx *ctx, RedisModuleString *
     RedisModule_Call(ctx, "XADD", "sscs", ui, mid, "FW", args[0]);
     if (!RMUtil_StringEquals(u, argv[1])) {
       // redis.call('ZADD', 'r:' .. u, 'INCR', 1, gs:<gid>)
-      RedisModuleString *rtuid = RedisModule_CreateStringPrintf(ctx, "r:%s", RedisModule_StringPtrLen(ui, NULL));
+      RedisModuleString *rtuid = RedisModule_CreateStringPrintf(ctx, "r:%s", RedisModule_StringPtrLen(u, NULL));
       RedisModule_Call(ctx, "ZADD", "scls", rtuid, "INCR", 1, args[0]);
     }
   }
@@ -210,6 +210,10 @@ int LinkCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     return RedisModule_WrongArity(ctx);
   }
   RedisModuleCallReply* rep = _LinkCommand(ctx, argv, argc);
+  if (RedisModule_CallReplyInteger(rep) == 0) {
+    // already in concat list
+    return RedisModule_ReplyWithCallReply(ctx, rep);
+  }
   // IM.SEND  [<uid>] [<tuid>] [action link] [uid <uid>] [tuid <tuid>]
   RedisModuleString **sargs = calloc(9, sizeof(RedisModuleString*));
   // jargs[0] = "IM.SEND"
@@ -250,16 +254,20 @@ int UnLinkCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 RedisModuleCallReply* _JoinGroupCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModuleString *gmid = RedisModule_CreateStringPrintf(ctx, "gm:%s", RedisModule_StringPtrLen(argv[2], NULL));
   // exists in group
-  RedisModuleCallReply *e = RedisModule_Call(ctx, "SISMEMBER", "ss", gmid, argv[1]);
-  if ((e != NULL) && (RedisModule_CallReplyType(e) == REDISMODULE_REPLY_INTEGER) && (RedisModule_CallReplyInteger(e) == 1)) {
-    return e;
-  }
+  // RedisModuleCallReply *e = RedisModule_Call(ctx, "SISMEMBER", "ss", gmid, argv[1]);
+  // if ((e != NULL) && (RedisModule_CallReplyType(e) == REDISMODULE_REPLY_INTEGER) && (RedisModule_CallReplyInteger(e) == 1)) {
+  //   return e;
+  // }
   // add use concat
   // ZADD c:<uid> timestamp gid
   // ZADD r:<uid> 0 gid
   _LinkCommand(ctx, argv, argc);
   // add use to group
   RedisModuleCallReply *rep = RedisModule_Call(ctx, "SADD", "ss", gmid, argv[1]);
+  if (RedisModule_CallReplyInteger(rep) == 0) {
+    // already in group set
+    return rep;
+  }
   // send join group message
   // IM.GSEND  [<uid>] [<gid>] [action join] [uid <uid>] [group <gid>]
   RedisModuleString **gargs = calloc(9, sizeof(RedisModuleString*));
@@ -324,12 +332,12 @@ int GroupCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (argc < 2) {
     return RedisModule_WrongArity(ctx);
   }
-  RedisModuleString *gid = RedisModule_CreateStringPrintf(ctx, "gi:%s", RedisModule_StringPtrLen(argv[1], NULL));
+  RedisModuleString *gid = RedisModule_CreateStringPrintf(ctx, "gi:%s", RedisModule_StringPtrLen(argv[2], NULL));
   if (argc == 2) {
     // get group info
     // HGETALL gi:<gid>
     // SMEMBERS gm:<gid>
-    RedisModuleString *gmid = RedisModule_CreateStringPrintf(ctx, "gm:%s", RedisModule_StringPtrLen(argv[1], NULL));
+    RedisModuleString *gmid = RedisModule_CreateStringPrintf(ctx, "gm:%s", RedisModule_StringPtrLen(argv[2], NULL));
     RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
     RedisModule_ReplyWithCallReply(ctx, RedisModule_Call(ctx, "HGETALL", "s", gid));
     RedisModule_ReplyWithCallReply(ctx, RedisModule_Call(ctx, "SMEMBERS", "s", gmid));
@@ -348,7 +356,7 @@ int GroupCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   args[0] = gid;
   args[1] = RedisModule_CreateStringPrintf(ctx, "master");
-  args[2] = RedisModule_CreateStringFromString(ctx, argv[2]);
+  args[2] = RedisModule_CreateStringFromString(ctx, argv[1]);
   for (int i=3; i<argc; i++){
     args[i] = RedisModule_CreateStringFromString(ctx, argv[i]);
   }
@@ -356,8 +364,8 @@ int GroupCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // join(uid: string, gid: string)
   RedisModuleString **jargs = calloc(3, sizeof(RedisModuleString*));
   // jargs[0] = "IM.JOIN"
-  jargs[1] = RedisModule_CreateStringFromString(ctx, argv[2]);
-  jargs[2] = RedisModule_CreateStringFromString(ctx, argv[1]);
+  jargs[1] = RedisModule_CreateStringFromString(ctx, argv[1]);
+  jargs[2] = RedisModule_CreateStringFromString(ctx, argv[2]);
   _JoinGroupCommand(ctx, jargs, 3);
   return RedisModule_ReplyWithCallReply(ctx, rep);
 }

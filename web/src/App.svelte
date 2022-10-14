@@ -1,90 +1,42 @@
 <script>
+  import { get } from 'svelte/store';
   import { onMount, afterUpdate } from 'svelte';
   import a from './assets/A.jpg'
   import './assets/litewebchat.min.css'
+  // import { messages, contacts, target_user_id, user_id, chats, last_message_id } from './redisim'
+  import redisim from './redisim'
+  const { connect, messages, contacts, target_user_id, group_id, user_id, chats, last_message_id, send } = redisim
   export let uid = ''
   let avatar = a
-  let tuid = ''
-  let messages = []
-  let chats = []
-  let contacts = []
-  let ws
 
   $: {
-    if (tuid == uid) {
-      chats = messages.filter(t => t.message && t.message.tuid == tuid && t.message.uid == tuid)
-    } else if (tuid) {
-      chats = messages.filter(t => t.message && (t.message.tuid == tuid || t.message.uid == tuid));
-    }
+    user_id.set(uid)
   }
-  // $: chats = messages.filter(t => t.message && (t.message.tuid == tuid || t.message.uid == tuid));
-
-  $: messageLength = messages.length
-  $: contactLength = contacts.length
 
   afterUpdate(() => {
-    console.log('messages', messages, chats, contacts, uid, tuid)
+    // console.log('messages', $messages, 'contacts', $contacts, 'chats', $chats, 'last_message_id', $last_message_id, 'target_user_id', target_user_id)
   })
 
-  const connect = (uid) => {
-    const w = new WebSocket(location.origin.replace('http', 'ws') + '/ws?user_id=' + uid);
-    w.onopen = () => {
-      //state.messages
-    }
-    w.onclose = () => {
-      // connect()
-    }
-    w.onmessage = (evt) => {
-      if(typeof evt.data === "string") {
-        // console.log(evt, evt.data, typeof evt.data)
-        try{
-          const message = JSON.parse(evt.data)
-          console.log('message', message)
-          if (message.message && message.message.action) {
-            const { uid: u, tuid: tu, action } = message.message
-            console.log('action', action)
-            if (action == 'link') {
-              contacts = contacts.concat({
-                tuid: u == uid ? tu : u,
-                avatar: a,
-              })
-            }
-          } else {
-            if (message.message) {
-              messages = messages.concat(message)
-            }
-          }
-        } catch(e) {
-          console.error(e)
-        }
-      }
-    }
-    ws = w
-  }
-
   const onChange = (e) => {
-    connect(uid = e.target.value)
+    connect(e.target.value)
   }
 
-  const send = e => {
+  const onSend = e => {
     const message = e.target.value
     e.target.value = ''
-    ws.send(JSON.stringify({
-      action: 'send',
-      params: [uid, tuid, 'message', message]
-    }))
+    send(message)
   }
 
 </script>
 
 <main>
-  {#if !uid}
-    <div class="login"><input placeholder="input username" on:change={onChange}></div>
+  {#if !$user_id}
+    <div class="login"><input class="login-name" placeholder="input username" on:change={onChange}></div>
   {:else}
     <div class="chat-app">
       <div class="contact">
-        {#each contacts as { tuid: tu, avatar }, i}
-          <div class="item" on:click={e => tuid = tu}>
+        {#each $contacts as { tuid: tu, gid, avatar = a }, i}
+          <div class="item" on:click={e => [target_user_id.set(tu), group_id.set(gid)]}>
             <img class="headIcon radius" src={avatar} />
             <span class="name">{tu}&nbsp;</span>
           </div>
@@ -92,15 +44,27 @@
       </div>
       <div class="chatbox">
         <div class="lite-chatbox">
-        {#each chats.reverse() as { message }, i}
-          <div class="{message.tuid == uid ? 'cleft' : 'cright'} cmsg">
-            <img class="headIcon radius" src={avatar}>
-            <span class="name">{message.uid}&nbsp;</span>
-            <span class="content">{message.message}</span>
-          </div>
+        {#each $chats.reverse() as { message, id }, i}
+          {#if message.action == 'link'}
+            <div class="tips">
+              <span class="tips-success">{message.uid == $user_id ? '您' : message.uid}已成功添加{message.tuid == $user_id ? '您' : message.tuid}</span>
+            </div>
+          {:else if message.action == 'join'}
+            <div class="tips">
+              <span class="tips-success">{message.uid == $user_id ? '您' : message.uid}加入群聊</span>
+            </div>
+          {:else}
+            <div class="{message.uid == $user_id ? 'cright' : 'cleft'} cmsg" id={id}>
+              <img class="headIcon radius" src={avatar} />
+              <span class="name">{message.uid}&nbsp;</span>
+              <span class="content">{message.message}</span>
+            </div>
+          {/if}
         {/each}
         </div>
-        <input class="message" placeholder="input message" on:change={send} />
+        {#if $target_user_id}
+          <input class="message" placeholder="input message" on:change={onSend} />
+        {/if}
       </div>
     </div>
   {/if}
@@ -144,6 +108,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  .login-name {
+    height: 40px;
+    border: 1px solid #c5d4c4;
+    border-radius: 20px;
+    padding: 0 20px;
   }
   .contact .item{
     display: flex;
