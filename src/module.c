@@ -362,6 +362,43 @@ int GroupCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   return RedisModule_ReplyWithCallReply(ctx, rep);
 }
 
+/**
+ * IM.MESSAGE [GROUP | USER] [uid] [mid] (get one message)
+ */
+int MessageCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc < 2) {
+    return RedisModule_WrongArity(ctx);
+  }
+  RedisModule_AutoMemory(ctx);
+
+  RedisModuleString *gid = NULL;
+  RMUtil_ParseArgsAfter("GROUP", argv, argc, "s", &gid);
+  RedisModuleString *uid = NULL;
+  RMUtil_ParseArgsAfter("USER", argv, argc, "s", &uid);
+
+  if (gid == NULL && uid == NULL && argc != 3) {
+    return RedisModule_WrongArity(ctx);
+  }
+  if ((gid != NULL || uid != NULL) && argc != 4) {
+    return RedisModule_WrongArity(ctx);
+  }
+
+  // last param is mid
+  RedisModuleString *mid = argv[argc - 1];
+
+  if (gid == NULL && uid == NULL) {
+    uid = argv[1];
+  }
+  RedisModuleString *channel_id = RedisModule_CreateStringPrintf(ctx, uid == NULL ? "gs:%s" : "s:%s", RedisModule_StringPtrLen(uid == NULL ? gid : uid, NULL));
+
+  RedisModuleCallReply* rep = RedisModule_Call(ctx, "XRANGE", "sss", channel_id, mid, mid);
+  if (RedisModule_CallReplyLength(rep) == 1) {
+    return RedisModule_ReplyWithCallReply(ctx, RedisModule_CallReplyArrayElement(rep, 0));
+  } else {
+    return RedisModule_ReplyWithNull(ctx);
+  }
+}
+
 int RedisModule_OnLoad(RedisModuleCtx *ctx) {
 
   // Register the module itself
@@ -403,6 +440,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx) {
   }
 
   if (RedisModule_CreateCommand(ctx, "im.quit", QuitGroupCommand, "", 0, 0, 0) == REDISMODULE_ERR) {
+    return REDISMODULE_ERR;
+  }
+
+  if (RedisModule_CreateCommand(ctx, "im.message", MessageCommand, "", 0, 0, 0) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
 

@@ -42,14 +42,14 @@ async def recive(user_id, **kwargs):
         for mid, message in messages:
             m = array_to_dict(*message, tuid=channel[2:])
             if 'FW' in m:
-                fw = m['FW']
-                mr = await pool.execute("XRANGE", fw, mid, mid)
-                if len(mr) > 0:
-                    mid, message = mr[0]
-                    if 'gs:' == fw[:3]:
-                        m = array_to_dict(*message, gid=fw[3:])
+                fwt, fwc = m['FW'].split(':')
+                mr = await pool.execute("IM.MESSAGE", 'GROUP' if fwt == 'gs' else 'USER', fwc, mid)
+                if mr:
+                    mid, message = mr
+                    if 'gs:' == fwt:
+                        m = array_to_dict(*message, gid=fwc)
                     else:
-                        m = array_to_dict(*message, tuid=fw[2:], uid=channel[2:])
+                        m = array_to_dict(*message, tuid=fwc, uid=channel[2:])
                     yield mid, m
             else:
                 yield mid, m
