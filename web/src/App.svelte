@@ -5,7 +5,7 @@
   import './assets/litewebchat.min.css'
   // import { messages, contacts, target_user_id, user_id, chats, last_message_id } from './redisim'
   import redisim from './redisim'
-  const { connect, messages, contacts, target_user_id, group_id, user_id, chats, last_message_id, send } = redisim
+  const { connect, messages, contacts, target_user_id, group_id, user_id, chats, last_message_id, send, link, join } = redisim
   export let uid = ''
   let avatar = a
 
@@ -27,6 +27,18 @@
     send(message)
   }
 
+  const onLink = e => {
+    const tuid = e.target.value
+    e.target.value = ''
+    link(tuid)
+  }
+
+  const onJoin = e => {
+    const gid = e.target.value
+    e.target.value = ''
+    join(gid)
+  }
+
 </script>
 
 <main>
@@ -35,6 +47,8 @@
   {:else}
     <div class="chat-app">
       <div class="contact">
+        <div class="link"><input class="link-name" placeholder="link user" on:change={onLink}></div>
+        <div class="link"><input class="link-name" placeholder="join group" on:change={onJoin}></div>
         {#each $contacts as { tuid: tu, gid, avatar = a }, i}
           <div class="item" on:click={e => [target_user_id.set(tu), group_id.set(gid)]}>
             <img class="headIcon radius" src={avatar} />
@@ -76,8 +90,10 @@
     display: flex;
   }
   .contact{
-    width: 120px;
+    max-width: 240px;
+    width: 20%;
     height: 100%;
+    padding: 0 10px;
   }
   .chatbox{
     flex: 1;
@@ -115,11 +131,19 @@
     border-radius: 20px;
     padding: 0 20px;
   }
+  .link-name {
+    height: 40px;
+    border: 1px solid #c5d4c4;
+    border-radius: 20px;
+    padding: 0 20px;
+    box-sizing: border-box;
+    width: 100%;
+  }
   .contact .item{
     display: flex;
     height: 50px;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
   }
   .headIcon{
     pointer-events: none;
@@ -129,5 +153,12 @@
     height: 34px;
     border: 1px solid #c5d4c4;
     border-radius: 100%;
+    margin-right: 6px;
+  }
+  .contact .item .name{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
   }
 </style>

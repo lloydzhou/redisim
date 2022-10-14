@@ -98,6 +98,25 @@ export function RedisIM(url) {
       }))
     }
   }
+  const link = (tuid) => {
+    const uid = get(user_id)
+    if (tuid) {
+      ws.send(JSON.stringify({
+        action: 'link',
+        params: [uid, tuid],
+      }))
+    }
+  }
+
+  const join = (gid) => {
+    const uid = get(user_id)
+    if (gid) {
+      ws.send(JSON.stringify({
+        action: 'join',
+        params: [uid, gid],
+      }))
+    }
+  }
 
   return {
     connect,
@@ -110,6 +129,8 @@ export function RedisIM(url) {
     group_id,
     last_message_id,
     send,
+    link,
+    join,
   }
 }
 
