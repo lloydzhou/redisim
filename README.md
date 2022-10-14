@@ -18,6 +18,10 @@
 > IM.RECIVE [uid] BLOCK [ms] COUNT [count] START [start]  
 > 获取历史消息，以及监听新的消息
 
+### IM.MESSAGE
+> IM.RECIVE [GROUP | USER] [uid | gid] [mid]  
+> 获取单条消息
+
 ### IM.SEND
 > IM.SEND [uid] [tuid] [field value] [field value ... ]  
 > 发送单聊消息
