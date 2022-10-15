@@ -100,23 +100,25 @@ export function RedisIM(url) {
     const id = +new Date();
     let response = ''
     return new Promise((resolve, reject) => {
-      ws.send(JSON.stringify({id, action, params}))
       const unsubscribe = messages.subscribe(messages => {
         const m = messages.slice(-1).pop()
-        if (response == m.id) {
-          resolve(m)
-          unsubscribe()
-        }
-        if (m.response && m.id === id) {
-          response = m.response
-          if (typeof response == "string" && response.split('-').length == 2) {
-          } else {
-            resolve(m.response)
+        if (m) {
+          if (response == m.id) {
+            resolve(m)
             unsubscribe()
+          }
+          if (m.response && m.id === id) {
+            response = m.response
+            if (typeof response == "string" && response.split('-').length == 2) {
+            } else {
+              resolve(m.response)
+              unsubscribe()
+            }
           }
         }
       })
       setTimeout(unsubscribe, 3000)
+      ws.send(JSON.stringify({id, action, params}))
     })
   }
   const send = (message) => {
