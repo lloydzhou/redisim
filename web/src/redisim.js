@@ -2,17 +2,17 @@ import { readable, derived, get } from 'svelte/store';
 import { writable } from 'svelte/store';
 
 function createListStore() {
-	const list = writable([]);
-	const { subscribe, set, update } = list;
+  const list = writable([]);
+  const { subscribe, set, update } = list;
   return {
-		subscribe,
-		push: (i) => update(n => n.concat(i)),
-		pop: () => update(n => n.slice(0, -1)),
-		shift: () => update(n => n.slice(1)),
-		get: (id) => update(n => n.filter(i => i.id === id).pop()),
-		remove: (id) => update(n => n.filter(i => i.id !== id)),
-		clear: () => set([]),
-		length: () => get(list).length,
+    subscribe,
+    push: (i) => update(n => n.concat(i)),
+    pop: () => update(n => n.slice(0, -1)),
+    shift: () => update(n => n.slice(1)),
+    get: (id) => update(n => n.filter(i => i.id === id).pop()),
+    remove: (id) => update(n => n.filter(i => i.id !== id)),
+    clear: () => set([]),
+    length: () => get(list).length,
   }
 }
 
