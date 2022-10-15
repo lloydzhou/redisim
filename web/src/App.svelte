@@ -1,6 +1,6 @@
 <script>
   import { get } from 'svelte/store';
-  import { onMount, afterUpdate } from 'svelte';
+  import { onMount, afterUpdate, tick } from 'svelte';
   import a from './assets/A.jpg'
   import './assets/litewebchat.min.css'
   // import { messages, contacts, target_user_id, user_id, chats, last_message_id } from './redisim'
@@ -24,7 +24,15 @@
   const onSend = e => {
     const message = e.target.value
     e.target.value = ''
-    send(message)
+    send(message).then(message => {
+      tick().then(() => {
+        const m = document.getElementById(message.id)
+        // console.log('send', message.id, m)
+        if (m) {
+          m.scrollIntoView()
+        }
+      })
+    })
   }
 
   const onLink = e => {
@@ -60,11 +68,11 @@
         <div class="lite-chatbox">
         {#each $chats.reverse() as { message, id, uid, tuid }, i}
           {#if message.action == 'link'}
-            <div class="tips">
+            <div class="tips" id={id}>
               <span class="tips-success">{uid == $user_id ? '您' : uid}已成功添加{tuid == $user_id ? '您' : tuid}</span>
             </div>
           {:else if message.action == 'join'}
-            <div class="tips">
+            <div class="tips" id={id}>
               <span class="tips-success">{uid == $user_id ? '您' : uid}加入群聊</span>
             </div>
           {:else}

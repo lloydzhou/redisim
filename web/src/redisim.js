@@ -60,9 +60,16 @@ export function RedisIM(url) {
     }
     return []
   })
-  const last_message_id = derived(messages, m => {
-    // const l = 
-    return (m.slice(-1).pop() ||{id: 0}).id
+  const last_message = derived(messages, m => {
+    for (let i=m.length-1; i >0; i--) {
+      if (m[i].message) {
+        return message
+      }
+    }
+    return {id: ''}
+  })
+  const last_message_id = derived(last_message, m => {
+    return m.id
   })
   let ws
   const connect = (uid) => {
@@ -88,33 +95,48 @@ export function RedisIM(url) {
   }
 
   const select_user = (tuid) => target_user_id.set(tuid)
+
+  const action = (action, params) => {
+    const id = +new Date();
+    let response = ''
+    return new Promise((resolve, reject) => {
+      const unsubscribe = messages.subscribe(messages => {
+        const m = messages.slice(-1).pop()
+        if (response == m.id) {
+          resolve(m)
+          unsubscribe()
+        }
+        if (m.response && m.id === id) {
+          response = m.response
+          if (typeof response == "string" && response.split('-').length == 2) {
+          } else {
+            resolve(m.response)
+            unsubscribe()
+          }
+        }
+      })
+      setTimeout(unsubscribe, 3000)
+      ws.send(JSON.stringify({id, action, params}))
+    })
+  }
   const send = (message) => {
     const tuid = get(target_user_id)
     const uid = get(user_id)
     if (tuid) {
-      ws.send(JSON.stringify({
-        action: get(group_id) ? 'gsend' : 'send',
-        params: [uid, tuid, 'message', message],
-      }))
+      return action(get(group_id) ? 'gsend' : 'send', [uid, tuid, 'message', message])
     }
   }
   const link = (tuid) => {
     const uid = get(user_id)
     if (tuid) {
-      ws.send(JSON.stringify({
-        action: 'link',
-        params: [uid, tuid],
-      }))
+      return action('link', [uid, tuid])
     }
   }
 
   const join = (gid) => {
     const uid = get(user_id)
     if (gid) {
-      ws.send(JSON.stringify({
-        action: 'join',
-        params: [uid, gid],
-      }))
+      return action('join', [uid, gid])
     }
   }
 
