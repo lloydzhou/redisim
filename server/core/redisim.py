@@ -52,10 +52,10 @@ async def recive(user_id, **kwargs):
                         m = array_to_dict(*message, gid=fwc)
                     else:
                         m = array_to_dict(*message, tuid=fwc, uid=channel[2:])
-                    yield mid, m
+                    yield mid, m['uid'], fwc, m
             else:
-                yield mid, m
-    yield None, None
+                yield mid, m['uid'], channel[2:], m
+    yield None, None, None, None
 
 
 async def action(command, *params):

@@ -50,13 +50,13 @@ export function RedisIM(url) {
   })
   const chats = derived([messages, user_id, target_user_id, group_id], ([m, uid, tuid, gid]) => {
     if (tuid == uid) {
-      return m.filter(t => t.message && t.message.tuid == tuid && t.message.uid == tuid)
+      return m.filter(t => t.message && t.tuid == tuid && t.uid == tuid)
     }
     if (gid) {
-      return m.filter(t => t.message && (t.message.tuid == gid || t.message.uid == gid))
+      return m.filter(t => t.message && (t.tuid == gid || t.uid == gid))
     }
     if (tuid) {
-      return m.filter(t => t.message && ((t.message.tuid == tuid && t.message.uid == uid) || (t.message.uid == tuid && t.message.tuid == uid)) || t.message.gid == tuid);
+      return m.filter(t => t.message && ((t.tuid == tuid && t.uid == uid) || (t.uid == tuid && t.tuid == uid)) || t.gid == tuid);
     }
     return []
   })

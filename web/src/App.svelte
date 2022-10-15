@@ -51,26 +51,26 @@
         <div class="link"><input class="link-name" placeholder="join group" on:change={onJoin}></div>
         {#each $contacts as { tuid: tu, gid, avatar = a }, i}
           <div class="item" on:click={e => [target_user_id.set(tu), group_id.set(gid)]}>
-            <img class="headIcon radius" src={avatar} />
+            <img class="headIcon radius" src={avatar} alt="" />
             <span class="name">{tu}&nbsp;</span>
           </div>
         {/each}
       </div>
       <div class="chatbox">
         <div class="lite-chatbox">
-        {#each $chats.reverse() as { message, id }, i}
+        {#each $chats.reverse() as { message, id, uid, tuid }, i}
           {#if message.action == 'link'}
             <div class="tips">
-              <span class="tips-success">{message.uid == $user_id ? '您' : message.uid}已成功添加{message.tuid == $user_id ? '您' : message.tuid}</span>
+              <span class="tips-success">{uid == $user_id ? '您' : uid}已成功添加{tuid == $user_id ? '您' : tuid}</span>
             </div>
           {:else if message.action == 'join'}
             <div class="tips">
-              <span class="tips-success">{message.uid == $user_id ? '您' : message.uid}加入群聊</span>
+              <span class="tips-success">{uid == $user_id ? '您' : uid}加入群聊</span>
             </div>
           {:else}
-            <div class="{message.uid == $user_id ? 'cright' : 'cleft'} cmsg" id={id}>
-              <img class="headIcon radius" src={avatar} />
-              <span class="name">{message.uid}&nbsp;</span>
+            <div class="{uid == $user_id ? 'cright' : 'cleft'} cmsg" id={id}>
+              <img class="headIcon radius" src={avatar} alt="" />
+              <span class="name">{uid}&nbsp;</span>
               <span class="content">{message.message}</span>
             </div>
           {/if}
