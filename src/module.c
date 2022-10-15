@@ -1,12 +1,6 @@
 #define REDISMODULE_EXPERIMENTAL_API
-#include <time.h>
-#include <math.h>
 #include "./redismodule.h"
-#include "./rmutil/util.h"
-#include "./rmutil/strings.h"
-#include "./rmutil/test_util.h"
-
-
+#include "./rmutil.c"
 
 /**
  * IM.RECIVE  [<uid>] BLOCK [ms] COUNT [count] START [start]
