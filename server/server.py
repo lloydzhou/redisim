@@ -50,7 +50,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         asyncio.ensure_future(loop())
 
     async def on_message(self, message):
-        print("WebSocket message", message)
+        # print("WebSocket message", message)
         # self.write_message(u"You said: " + message)
         try:
             message = json.loads(message)

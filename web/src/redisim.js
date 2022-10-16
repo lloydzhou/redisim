@@ -1,19 +1,32 @@
-import { readable, derived, get } from 'svelte/store';
-import { writable } from 'svelte/store';
+// import { writable, derived, get } from 'svelte/store';
 
-function createListStore() {
-  const list = writable([]);
-  const { subscribe, set, update } = list;
-  return {
-    subscribe,
-    push: (i) => update(n => n.concat(i)),
-    pop: () => update(n => n.slice(0, -1)),
-    shift: () => update(n => n.slice(1)),
-    get: (id) => update(n => n.filter(i => i.id === id).pop()),
-    remove: (id) => update(n => n.filter(i => i.id !== id)),
-    clear: () => set([]),
-    length: () => get(list).length,
+function writable(value) {
+  let subscribers = [];
+  function set(new_value) {
+    value = new_value;
+    subscribers.forEach(l => l(value))
   }
+  function subscribe(run) {
+    run(value)
+    subscribers = subscribers.concat(run)
+    return () => subscribers = subscribers.filter(l => l !== run)
+  }
+  return { set, update: (fn) => set(fn(value)), subscribe }
+}
+
+function get(store) {
+  let value
+  store.subscribe(_ => value = _)()
+  return value
+}
+function derived(stores, fn) {
+  const values = writable([])
+  const unsubscribes = stores.forEach(store => {
+    store.subscribe(() => {
+      values.set(fn(stores.map(get)))
+    })
+  })
+  return values
 }
 
 // messages 做一个store，这个只会不断的累加不会减少
@@ -21,7 +34,7 @@ function createListStore() {
 // 联系人也从这个列表衍生出来
 
 export function RedisIM(url) {
-  const messages = createListStore()
+  const messages = writable([])
   const user_id = writable('')
   const target_user_id = writable('')
   const group_id = writable('')
@@ -60,22 +73,22 @@ export function RedisIM(url) {
     }
     return []
   })
-  const last_message = derived(messages, m => {
+  const last_message = derived([messages], ([m]) => {
     for (let i=m.length-1; i >0; i--) {
       if (m[i].message) {
-        return message
+        return m[i]
       }
     }
     return {id: ''}
   })
-  const last_message_id = derived(last_message, m => {
+  const last_message_id = derived([last_message], ([m]) => {
     return m.id
   })
   let ws
   const connect = (uid) => {
     if (get(user_id) != uid) {
       user_id.set(uid)
-      messages.clear()
+      messages.set([])
     }
     ws = new WebSocket(url + '?user_id=' + uid + '&last_message_id=' + get(last_message_id))
     ws.onmessage = (evt) => {
@@ -85,7 +98,7 @@ export function RedisIM(url) {
           const message = JSON.parse(evt.data)
           // console.log('message', message)
           if (message.id) {
-            messages.push(message)
+            messages.update(m => m.concat(message))
           }
         } catch(e) {
           console.error(e)
