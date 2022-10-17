@@ -1,10 +1,16 @@
 // import { writable, derived, get } from 'svelte/store';
 
+export function safe_not_equal(a, b) {
+	return a != a ? b == b : a !== b || ((a && typeof a === 'object') || typeof a === 'function');
+}
+
 function writable(value) {
   let subscribers = [];
   function set(new_value) {
-    value = new_value;
-    subscribers.forEach(l => l(value))
+    if (safe_not_equal(value, new_value)) {
+      value = new_value;
+      subscribers.forEach(l => l(value))
+    }
   }
   function subscribe(run) {
     run(value)
@@ -29,13 +35,40 @@ function derived(stores, fn) {
   return values
 }
 
+function useStorage() {
+  const messages = writable([])
+  const user_id = writable('')
+
+  try {
+    let su, sm
+    if (su = localStorage.getItem('user_id')) {
+      user_id.set(su)
+      sm = JSON.parse(localStorage.getItem(su))
+      if (sm && sm.length) {
+        messages.set(sm)
+      }
+    }
+  } catch (e) {}
+  console.log('init', get(user_id), get(messages))
+  messages.subscribe((m) => {
+    const uid = get(user_id)
+    if (uid) {
+      localStorage.setItem(uid, JSON.stringify(m))
+    }
+  })
+  user_id.subscribe((uid) => {
+    localStorage.setItem('user_id', uid)
+  })
+
+  return { messages, user_id }
+}
+
 // messages 做一个store，这个只会不断的累加不会减少
 // 衍生出来last_message_id, message_count, 还有针对每个人的列表等信息
 // 联系人也从这个列表衍生出来
 
 export function RedisIM(url) {
-  const messages = writable([])
-  const user_id = writable('')
+  const { messages, user_id } = useStorage()
   const target_user_id = writable('')
   const group_id = writable('')
   const contacts = derived([messages, user_id], ([m, uid]) => {
@@ -84,6 +117,7 @@ export function RedisIM(url) {
   const last_message_id = derived([last_message], ([m]) => {
     return m.id
   })
+  console.log('init', get(user_id), get(messages), get(last_message_id))
   let ws
   const connect = (uid) => {
     if (get(user_id) != uid) {
@@ -153,6 +187,10 @@ export function RedisIM(url) {
     if (gid) {
       return action('join', [uid, gid])
     }
+  }
+
+  if (get(user_id)) {
+    connect(get(user_id))
   }
 
   return {
