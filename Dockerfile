@@ -32,5 +32,5 @@ COPY --from=web /web/dist /web/dist
 
 ADD ./server /server
 
-CMD ["sh", "-c", "/usr/local/bin/redis-server --loadmodule /usr/local/bin/redisim.so --daemonize yes & python3 /server/server.py"]
+CMD ["sh", "-c", "mkdir -p /data && /usr/local/bin/redis-server --dir /data --loadmodule /usr/local/bin/redisim.so --daemonize yes & python3 /server/server.py"]
 
