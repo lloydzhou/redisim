@@ -58,6 +58,10 @@
 > IM.QUIT [uid] [gid]  
 > (remove from user group)
 
+## GUI
+1. using tornado WebSocketHandler to create websocket.
+2. using svelte create simple ui to send message (using localStorage to save message)
+
 
 ## docker
 
