@@ -83,28 +83,39 @@ export function RedisIM(url) {
   const last_message_id = derived([last_message], ([m]) => {
     return m.id
   })
+  const unread = derived([messages], ([m]) => {
+    return 1
+  })
   console.log('init', get(user_id), get(messages), get(last_message_id))
   let ws
   const connect = (uid) => {
-    if (get(user_id) != uid) {
-      user_id.set(uid)
-      messages.set([])
-    }
-    ws = new WebSocket(url + '?user_id=' + uid + '&last_message_id=' + get(last_message_id))
-    ws.onmessage = (evt) => {
-      if(typeof evt.data === "string") {
-        // console.log(evt, evt.data, typeof evt.data)
-        try{
-          const message = JSON.parse(evt.data)
-          // console.log('message', message)
-          if (message.id) {
-            messages.update(m => m.concat(message))
+    return new Promise((resolve, reject) => {
+      if (get(user_id) != uid) {
+        user_id.set(uid)
+        messages.set([])
+      }
+      ws = new WebSocket(url + '?user_id=' + uid + '&last_message_id=' + get(last_message_id))
+      ws.onmessage = (evt) => {
+        if(typeof evt.data === "string") {
+          // console.log(evt, evt.data, typeof evt.data)
+          try{
+            const message = JSON.parse(evt.data)
+            // console.log('message', message)
+            if (message.id) {
+              messages.update(m => m.concat(message))
+            }
+          } catch(e) {
+            console.error(e)
           }
-        } catch(e) {
-          console.error(e)
         }
       }
-    }
+      ws.onopen = (evt) => {
+        resolve(evt)
+      }
+      ws.onclose = (evt) => {
+        reject(evt)
+      }
+    })
   }
 
   const select_user = (tuid) => target_user_id.set(tuid)
