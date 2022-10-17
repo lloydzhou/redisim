@@ -16,13 +16,11 @@ const { target_user_id, group_id, user_id, chats, send } = redisim
     const message = e.target.value
     e.target.value = ''
     send(message).then(message => {
-      tick().then(() => {
-        const m = document.getElementById(message.id)
-        // console.log('send', message.id, m)
-        if (m) {
-          m.scrollIntoView()
-        }
-      })
+      const m = document.getElementById(message.id)
+      // console.log('send', message.id, m)
+      if (m) {
+        m.scrollIntoView()
+      }
     })
   }
 </script>
