@@ -1,4 +1,3 @@
-// import { writable, derived, get } from 'svelte/store';
 import { writable, derived, get } from './store';
 
 function useStorage() {
@@ -37,23 +36,39 @@ export function RedisIM(url) {
   const { messages, user_id } = useStorage()
   const target_user_id = writable('')
   const group_id = writable('')
+  const conversation = derived([messages, user_id], ([m, uid]) => {
+    const res = []
+    if (uid) {
+      const s = new Set()
+      m.slice(0).reverse().forEach(i => {
+        const { tuid: tu, uid: u } = i
+        const tuid = u == uid ? tu : u
+        if (tuid && !s.has(tuid)){
+          s.add(tuid)
+          res.push({ tuid, message: i })
+        }
+      })
+    }
+    return res
+  })
   const contacts = derived([messages, user_id], ([m, uid]) => {
     const res = []
     if (uid) {
       const s = new Set()
-      m.forEach(i => {
-        const { tuid: tu, uid: u, action, ...p } = i.message || {}
+      m.slice().reverse().forEach(i => {
+        const { tuid: tu, uid: u } = i
+        const { action } = i.message || {}
         if (action == 'link') {
           const tuid = u == uid ? tu : u
           if (!s.has(tuid)){
             s.add(tuid)
-            res.push({ tuid, ...p })
+            res.push({ tuid, message: i })
           }
         }
         else if (action == 'join') {
           if (!s.has(tu)){
             s.add(tu)
-            res.push({ tuid: tu, ...p })
+            res.push({ tuid: tu, message: i })
           }
         }
       })
@@ -175,6 +190,7 @@ export function RedisIM(url) {
     select_user,
     messages,
     contacts,
+    conversation,
     chats,
     user_id,
     target_user_id,

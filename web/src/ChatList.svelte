@@ -1,14 +1,32 @@
 <script>
   import page from 'page'
+  import dayjs from 'dayjs'
+  import relativeTime from 'dayjs/plugin/relativeTime'
   import redisim from './redisim'
   import { svgavatar } from './util'
-  const { contacts, target_user_id, group_id } = redisim
+  const { conversation, target_user_id, group_id } = redisim
+
+  dayjs.extend(relativeTime)
+  const showTime = (id) => {
+    return dayjs(parseInt(String(id).split('-')[0])).fromNow()
+  }
+
+  const summary = (message) => {
+    return message.message || ''
+  }
+ 
+  $: {
+    console.log('conversation', $conversation)
+  }
 
 </script>
-{#each $contacts as { tuid: tu, gid }, i}
+{#each $conversation as { tuid: tu, gid, message }, i}
   <div class="item" on:click={e => [target_user_id.set(tu), group_id.set(gid), page('/chat/' + tu)]}>
     <img class="headIcon radius" src={svgavatar(tu)} alt="" />
-    <span class="name">{tu}&nbsp;</span>
+    <div class="info">
+      <div class="name">{tu}&nbsp;</div>
+      <div class="desc"><span>{summary(message.message)}&nbsp;</span><span>{showTime(message.id)}</span></div>
+    </div>
   </div>
 {/each}
 <style>
@@ -17,6 +35,9 @@
     height: 50px;
     align-items: center;
     justify-content: space-between;
+    padding: 0 5px;
+    box-sizing: border-box;
+    border-bottom: 1px solid #c5d4c466;
   }
   .headIcon{
     pointer-events: none;
@@ -28,10 +49,18 @@
     border-radius: 100%;
     margin-right: 6px;
   }
-  .item .name{
+  .item .info{
+    flex: 1;
+  }
+  .item .name, .item{
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
+  }
+  .desc {
+    font-size: 10px;
+    color: #666;
+    display: flex;
+    justify-content: space-between;
   }
 </style>
