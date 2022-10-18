@@ -73,14 +73,9 @@ if __name__ == "__main__":
     path = join(root_path, "web", "dist")
     log_path = join(root_path, "logs")
 
-    @route(r"/chat(.*)")
+    @route(r"/(chat|mine|faxian|address|login)(.*)")
     class RedirectHandler(tornado.web.RequestHandler):
         def get(self, *args):
-            self.redirect('/')
-
-    @route(r"/login")
-    class RedirectHandler(tornado.web.RequestHandler):
-        def get(self):
             self.redirect('/')
 
     @route(r"/(.*)", path=path, default_filename="index.html")
