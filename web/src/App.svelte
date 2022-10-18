@@ -6,7 +6,7 @@ import Mine from './Mine.svelte'
 import ChatList from './ChatList.svelte'
 import Chat from './Chat.svelte'
 import Login from './Login.svelte'
-import { chatsvg, addresssvg, minesvg } from './util'
+import { chatsvg, addresssvg, faxiansvg, minesvg } from './util'
 
 import redisim from './redisim'
 
@@ -26,6 +26,11 @@ const routes = [
     path: '/address',
     component: Address,
     navbar: 'address',
+  },
+  {
+    path: '/faxian',
+    component: ChatList,
+    navbar: 'faxian',
   },
   {
     path: '/mine',
@@ -88,6 +93,12 @@ page.start()
               <img src={addresssvg(active == 'address' ? '#07c160' : '#00000080')} alt="" class="weui-tabbar__icon">
             </div>
             <p class="weui-tabbar__label">好友</p>
+          </div>
+          <div role="tab" class="weui-tabbar__item" class:weui-bar__item_on={active == 'faxian'} on:click={e => [active = 'faxian', page('/faxian')]}>
+            <div style="display: inline-block; position: relative;">
+              <img src={faxiansvg(active == 'faxian' ? '#07c160' : '#00000080')} alt="" class="weui-tabbar__icon">
+            </div>
+            <p class="weui-tabbar__label">发现</p>
           </div>
           <div role="tab" class="weui-tabbar__item" class:weui-bar__item_on={active == 'mine'} on:click={e => [active = 'mine', page('/mine')]}>
             <div style="display: inline-block; position: relative;">
