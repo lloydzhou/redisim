@@ -79,5 +79,6 @@ const { target_user_id, group_id, user_id, chats, send } = redisim
     border-radius: 20px;
     padding: 0 20px;
     box-sizing: border-box;
+    margin-bottom: 5px;
   }
 </style>
