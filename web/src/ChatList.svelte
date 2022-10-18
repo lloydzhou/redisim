@@ -1,22 +1,11 @@
 <script>
   import page from 'page'
-  import dayjs from 'dayjs'
-  import relativeTime from 'dayjs/plugin/relativeTime'
   import redisim from './redisim'
-  import { svgavatar } from './util'
+  import { svgavatar, showTime } from './util'
   const { conversation, target_user_id, group_id } = redisim
-
-  dayjs.extend(relativeTime)
-  const showTime = (id) => {
-    return dayjs(parseInt(String(id).split('-')[0])).fromNow()
-  }
 
   const summary = (message) => {
     return message.message || ''
-  }
- 
-  $: {
-    console.log('conversation', $conversation)
   }
 
 </script>

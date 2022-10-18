@@ -1,7 +1,7 @@
 <script>
   import page from 'page'
   import redisim from './redisim'
-  import { svgavatar } from './util'
+  import { svgavatar, showTime } from './util'
   const { contacts, target_user_id, group_id, link, join } = redisim
 
   const onLink = e => {
@@ -18,10 +18,13 @@
 </script>
 <div class="link"><input class="link-name" placeholder="link user" on:change={onLink}></div>
 <div class="link"><input class="link-name" placeholder="join group" on:change={onJoin}></div>
-{#each $contacts as { tuid: tu, gid }, i}
+{#each $contacts as { tuid: tu, gid, message }, i}
   <div class="item" on:click={e => [target_user_id.set(tu), group_id.set(gid), page('/chat/' + tu)]}>
     <img class="headIcon radius" src={svgavatar(tu)} alt="" />
-    <span class="name">{tu}&nbsp;</span>
+    <div class="info">
+      <div class="name">{tu}&nbsp;</div>
+      <span>{showTime(message.id)}</span>
+    </div>
   </div>
 {/each}
 <style>
@@ -50,10 +53,14 @@
     border-radius: 100%;
     margin-right: 6px;
   }
+  .item .info{
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+  }
   .item .name{
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
   }
 </style>
