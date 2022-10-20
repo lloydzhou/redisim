@@ -109,6 +109,10 @@ export function RedisIM(url) {
         user_id.set(uid)
         messages.set([])
       }
+      // 先尝试关闭
+      if (ws && ws.readyState != 3) {
+        ws.close()
+      }
       ws = new WebSocket(url + '?user_id=' + uid + '&last_message_id=' + get(last_message_id))
       ws.onmessage = (evt) => {
         if(typeof evt.data === "string") {
@@ -184,6 +188,15 @@ export function RedisIM(url) {
   if (get(user_id)) {
     connect(get(user_id))
   }
+
+  // 启动的时候不主动触发连接，而是在用户登录的时候触发，所以监听事件的时候，尝试判断一下
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && get(user_id)) {
+      console.log('visibilitychange reconnect')
+      // alert('reconnect' + document.visibilityState)
+      connect(get(user_id))
+    }
+  });
 
   return {
     connect,
