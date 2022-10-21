@@ -97,7 +97,6 @@ const { target_user_id, group_id, user_id, chats, send } = redisim
     width: 100px;
     border-radius: 20px;
     background: linear-gradient(20deg,#3f8fe1cc 0%,#44d7c9 100%);
-    box-shadow: 5px 5px 15px 0 rgb(102 102 102 / 15%);
     height: 40px;
     margin: 5px 5px 5px 10px;
     color: #ffffff;

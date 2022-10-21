@@ -9,6 +9,10 @@ RUN cd /server && make
 
 FROM node:alpine as web
 
+ADD ./web/package.json /web/package.json
+ADD ./web/yarn.lock /web/yarn.lock
+RUN cd /web && yarn install
+
 ADD ./web /web
 
 RUN cd /web && yarn install && yarn run build
@@ -25,9 +29,9 @@ FROM python:3.6-alpine
 
 RUN pip3 install aioredis==2.0.0 tornado -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
 
-COPY --from=builder /server/redisim.so /usr/local/bin/redisim.so
 COPY --from=redis /usr/local/bin/redis-server /usr/local/bin/redis-server
 COPY --from=redis /usr/local/bin/redis-cli /usr/local/bin/redis-cli
+COPY --from=builder /server/redisim.so /usr/local/bin/redisim.so
 COPY --from=web /web/dist /web/dist
 
 ADD ./server /server
