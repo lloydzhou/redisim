@@ -12,15 +12,24 @@ const { target_user_id, group_id, user_id, chats, send } = redisim
     }
   }
 
+  let value = ''
+  const onInput = (e) => {
+    value = e.target.value
+  }
+  const onKeydown = e => {
+    if (e.keyCode === 13) {
+      onSend(e)
+    }
+  }
   const onSend = e => {
-    const message = e.target.value
-    e.target.value = ''
-    send(message).then(message => {
+    if (!value) return;
+    send(value).then(message => {
       const m = document.getElementById(message.id)
       // console.log('send', message.id, m)
       if (m) {
         m.scrollIntoView()
       }
+      value = ''
     })
   }
 </script>
@@ -48,8 +57,11 @@ const { target_user_id, group_id, user_id, chats, send } = redisim
   {/each}
   </div>
   {#if $target_user_id}
-    <div role="tablist" aria-label="选项卡标题" class="weui-tabbar">
-      <input class="message" placeholder="input message" on:change={onSend} />
+    <div role="tablist" aria-label="输入框" class="weui-tabbar">
+      <input class="message" placeholder="input message" bind:value={value} on:keydown={onKeydown} on:input={onInput} />
+      {#if value}
+        <button class="send" on:click={onSend}>发送</button>
+      {/if}
     </div>
   {/if}
 </div>
@@ -79,6 +91,15 @@ const { target_user_id, group_id, user_id, chats, send } = redisim
     border-radius: 20px;
     padding: 0 20px;
     box-sizing: border-box;
-    margin-bottom: 5px;
+    margin: 5px;
+  }
+  .send {
+    width: 100px;
+    border-radius: 20px;
+    background: linear-gradient(20deg,#3f8fe1cc 0%,#44d7c9 100%);
+    box-shadow: 5px 5px 15px 0 rgb(102 102 102 / 15%);
+    height: 40px;
+    margin: 5px 5px 5px 10px;
+    color: #ffffff;
   }
 </style>
