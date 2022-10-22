@@ -1,6 +1,6 @@
 <script>
   import page from 'page'
-  import redisim from './redisim'
+  import redisim from './lib/redisim'
   import { svgavatar, showTime } from './util'
   const { contacts, target_user_id, group_id, link, join } = redisim
 

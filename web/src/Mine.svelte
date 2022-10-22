@@ -1,6 +1,6 @@
 <script>
   import 'weui/src/style/widget/weui-media-box/weui-media-box.less'
-  import redisim from './redisim'
+  import redisim from './lib/redisim'
   import { svgavatar } from './util'
   const { user_id } = redisim
 </script>

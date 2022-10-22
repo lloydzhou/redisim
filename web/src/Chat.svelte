@@ -1,7 +1,7 @@
 <script>
 import page from 'page'
 import './assets/litewebchat.min.css'
-import redisim from './redisim'
+import redisim from './lib/redisim'
 import { svgavatar } from './util'
 const { target_user_id, group_id, user_id, chats, send } = redisim
 

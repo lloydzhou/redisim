@@ -1,6 +1,6 @@
 <script>
 import page from 'page'
-import redisim from './redisim'
+import redisim from './lib/redisim'
 
 const { user_id, connect } = redisim
 

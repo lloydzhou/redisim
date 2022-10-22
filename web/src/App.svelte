@@ -8,7 +8,7 @@ import Chat from './Chat.svelte'
 import Login from './Login.svelte'
 import { chatsvg, addresssvg, faxiansvg, minesvg } from './util'
 
-import redisim from './redisim'
+import redisim from './lib/redisim'
 
 const { user_id, unread } = redisim
 
