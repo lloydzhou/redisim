@@ -25,15 +25,6 @@ function useStorage() {
     localStorage.setItem('user_id', uid)
   })
 
-  return { messages, user_id }
-}
-
-// messages 做一个store，这个只会不断的累加不会减少
-// 衍生出来last_message_id, message_count, 还有针对每个人的列表等信息
-// 联系人也从这个列表衍生出来
-
-export function RedisIM(url) {
-  const { messages, user_id } = useStorage()
   const target_user_id = writable('')
   const group_id = writable('')
   const conversation = derived([messages, user_id], ([m, uid]) => {
@@ -101,6 +92,16 @@ export function RedisIM(url) {
   const unread = derived([messages], ([m]) => {
     return 1
   })
+  return { messages, user_id, last_message, last_message_id, target_user_id, group_id, conversation, contacts, chats }
+}
+
+// messages 做一个store，这个只会不断的累加不会减少
+// 衍生出来last_message_id, message_count, 还有针对每个人的列表等信息
+// 联系人也从这个列表衍生出来
+
+export function RedisIM(url) {
+  const storage = useStorage()
+  const { messages, user_id, last_message, last_message_id, target_user_id, group_id, conversation, contacts, chats } = storage
   console.log('init', get(user_id), get(messages), get(last_message_id))
   let ws
   const connect = (uid) => {
@@ -199,8 +200,6 @@ export function RedisIM(url) {
   });
 
   return {
-    connect,
-    select_user,
     messages,
     contacts,
     conversation,
@@ -209,6 +208,8 @@ export function RedisIM(url) {
     target_user_id,
     group_id,
     last_message_id,
+    connect,
+    select_user,
     send,
     link,
     join,
