@@ -1,6 +1,7 @@
 import { writable, derived, get } from './store';
 
 function useStorage() {
+  // 使用localstorage加上内存中的数组实现
   const messages = writable([])
   const user_id = writable('')
 
