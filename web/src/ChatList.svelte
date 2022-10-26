@@ -13,7 +13,7 @@
   <div class="item" on:click={e => [target_user_id.set(tu), group_id.set(gid), page('/chat/' + tu)]}>
     <img class="headIcon radius" src={svgavatar(tu)} alt="" />
     <div class="info">
-      <div class="name">{tu}&nbsp;</div>
+      <div class="name">{tu}&nbsp;{gid}</div>
       <div class="desc"><span>{summary(message.message)}&nbsp;</span><span>{showTime(message.id)}</span></div>
     </div>
   </div>

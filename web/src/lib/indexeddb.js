@@ -5,42 +5,96 @@ let messagedb
 
 export const events = writable([])
 export const messages = writable([])
+export const contacts = writable([])
+export const conversation = writable([])
+export const chats = writable([])
 export const user_id = writable('')
+export const target_user_id = writable('')
+export const group_id = writable('')
 export const last_message = writable({})
 export const last_message_id = derived([last_message], ([m]) => {
   return m.id || ''
 })
 
-
 try {
   let su
   if (su = localStorage.getItem('user_id')) {
     db.open({
-      server: 'redisim:' + su,
+      server: 'redisim' + su,
       version: 1,
       schema: {
         message: {
-          key: { keyPath: 'id' },
+          key: { keyPath: ['id'] },
           indexes: {
+            action: {
+              keyPath: ['created', 'message.action']
+            },
+            created: {
+              keyPath: ['created']
+            },
             tuid: {
+              keyPath: ['tuid']
+            },
+            tuid_created: {
               keyPath: ['tuid', 'created']
             },
           }
         }
       }
+    }).catch(err => {
+      console.log('err', err)
+      throw err
     }).then(function (s) {
       messagedb = s.message
       // 初始化messages列表
+      s.message.query('action')
+        .all()
+        .execute()
+        .then(action => {
+          console.log('action', action)
+          const res = []
+          const s = new Set()
+          action.slice().forEach(i => {
+            const { tuid: tu, uid: u } = i
+            const { action } = i.message || {}
+            if (action == 'link') {
+              const tuid = u == su ? tu : u
+              if (!s.has(tuid)){
+                s.add(tuid)
+                res.push({ tuid, message: i })
+              }
+            }
+            else if (action == 'join') {
+              if (!s.has(tu)){
+                s.add(tu)
+                res.push({ tuid: tu, gid: tu, message: i })
+              }
+            }
+          })
+          contacts.set(res)
+        })
       s.message.query('tuid')
+        .all()
+        .distinct()
+        .execute()
+        .then(users => Promise.all(users.map(u => s.message.query('tuid_created').filter('tuid', u.tuid).desc().limit(1).execute())).then(results => {
+          const c = results.reduce((s, i) => s.concat(i), []).map((i, n) => ({tuid: i.tuid, gid: i.message.gid || users[n].message.gid, message: i})).sort((a, b) => b.message.created - a.message.created)
+          console.log('conversation', users, c)
+          conversation.set(c)
+        }))
+
+      // set user_id after get last_message
+      return s.message.query('created')
         .all()
         .desc()
         .limit(500) // TODO
         .execute()
         .then(results => {
           // console.log('results', results)
-          messages.set(results)
           if (results.length > 0) {
-            last_message.set(results[0])
+            const m = results.slice().reverse()
+            last_message.set(m[m.length - 1])
+            messages.set(m)
           }
         })
     }).finally(() => {
@@ -50,9 +104,31 @@ try {
 } catch (e) {}
 
 last_message.subscribe(message => {
-  console.log('last_message')
+  console.log('last_message', message)
   if (messagedb) {
     messagedb.update(message)
+  }
+  const uid = get(user_id)
+  messages.update(m => m.concat(message))
+  const {tuid: tu, uid: u, gid} = message
+  let tuid = u == uid ? tu : u
+  const { action } = message.message || {}
+  if (action && uid && tuid) {
+    contacts.update(c => {
+      return c.filter(i => i.tuid == tuid).length == 0 ? c.concat({ tuid, gid: message.gid, message }) : c
+    })
+  }
+  if (tuid) {
+    conversation.update(c => {
+      if(c.map(i => i.tuid).indexOf(tuid) > -1) {
+        return c.map(i => i.tuid == tuid ? ({ tuid, gid: i.gid || gid, message }) : i)
+      }
+      return [{tuid, gid, message}].concat(c)
+    })
+  }
+  if (get(target_user_id)) {
+    console.log('update chats', get(chats), get(target_user_id))
+    chats.update(c => [message].concat(c))
   }
 })
 
@@ -60,59 +136,48 @@ user_id.subscribe((uid) => {
   localStorage.setItem('user_id', uid)
 })
 
-export const target_user_id = writable('')
-export const group_id = writable('')
-export const conversation = derived([messages, user_id], ([m, uid]) => {
-  const res = []
-  if (uid) {
-    const s = new Set()
-    m.slice(0).reverse().forEach(i => {
-      const { tuid: tu, uid: u } = i
-      const tuid = u == uid ? tu : u
-      if (tuid && !s.has(tuid)){
-        s.add(tuid)
-        res.push({ tuid, message: i })
-      }
-    })
+// export const chats = derived([messages, user_id, target_user_id, group_id], ([m, uid, tuid, gid]) => {
+//   if (tuid == uid) {
+//     return m.filter(t => t.message && t.tuid == tuid && t.uid == tuid)
+//   }
+//   if (gid) {
+//     return m.filter(t => t.message && (t.tuid == gid || t.uid == gid))
+//   }
+//   if (tuid) {
+//     return m.filter(t => t.message && ((t.tuid == tuid && t.uid == uid) || (t.uid == tuid && t.tuid == uid)) || t.gid == tuid);
+//   }
+//   return []
+// })
+
+group_id.subscribe(gid => {
+  console.log('gid', gid, get(chats))
+  if (gid && messagedb) {
+    messagedb.query('created')
+      .filter(i => i.tuid == gid || i.uid == gid)
+      .desc()
+      .execute()
+      .then(results => {
+        console.log('chats results', results)
+        chats.set(results)
+      })
   }
-  return res
 })
-export const contacts = derived([messages, user_id], ([m, uid]) => {
-  const res = []
-  if (uid) {
-    const s = new Set()
-    m.slice().reverse().forEach(i => {
-      const { tuid: tu, uid: u } = i
-      const { action } = i.message || {}
-      if (action == 'link') {
-        const tuid = u == uid ? tu : u
-        if (!s.has(tuid)){
-          s.add(tuid)
-          res.push({ tuid, message: i })
-        }
-      }
-      else if (action == 'join') {
-        if (!s.has(tu)){
-          s.add(tu)
-          res.push({ tuid: tu, message: i })
-        }
-      }
-    })
+
+target_user_id.subscribe(tuid => {
+  console.log('tuid', tuid, get(chats))
+  const uid = get(user_id)
+  if (uid && tuid && messagedb) {
+    messagedb.query('created')
+      .filter(i => (i.uid == uid && i.tuid == tuid) || (i.tuid == uid && i.uid == tuid))
+      .desc()
+      .execute()
+      .then(results => {
+        console.log('chats results', results)
+        chats.set(results)
+      })
   }
-  return res
 })
-export const chats = derived([messages, user_id, target_user_id, group_id], ([m, uid, tuid, gid]) => {
-  if (tuid == uid) {
-    return m.filter(t => t.message && t.tuid == tuid && t.uid == tuid)
-  }
-  if (gid) {
-    return m.filter(t => t.message && (t.tuid == gid || t.uid == gid))
-  }
-  if (tuid) {
-    return m.filter(t => t.message && ((t.tuid == tuid && t.uid == uid) || (t.uid == tuid && t.tuid == uid)) || t.gid == tuid);
-  }
-  return []
-})
+
 export const unread = derived([messages], ([m]) => {
   return 1
 })

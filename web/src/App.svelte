@@ -1,4 +1,5 @@
 <script>
+import { onMount } from 'svelte'
 import 'weui/src/style/widget/weui-tab/weui-tab.less'
 import page from 'page'
 import Address from './Address.svelte'
@@ -67,8 +68,8 @@ routes.forEach(({path, component, navbar}) => {
   })
 })
 
-// start
-page.start()
+
+onMount(() => page.start())
 
 </script>
 <div class="page">

@@ -1,13 +1,13 @@
-import {
+// switch to using indexeddb to storage messages
+// import * as storage from './localstorage'
+import * as storage from './indexeddb'
+
+const {
   user_id, target_user_id, group_id,
   messages, last_message, last_message_id,
   conversation, contacts, chats, events,
   get,
-// } from './localstorage'
-} from './indexeddb'
-// import {
-//   last_message as last_message1,
-// } from './indexeddb'
+} = storage
 
 export function RedisIM(url) {
   let ws
@@ -29,7 +29,6 @@ export function RedisIM(url) {
             const message = JSON.parse(evt.data)
             if (message.message) {
               message.created = parseInt(message.id.split('-')[0])
-              // messages.update(m => m.concat(message))
               last_message.set(message)
             } else if (message.id) {
               events.set(message)
@@ -97,6 +96,7 @@ export function RedisIM(url) {
   }
 
   user_id.subscribe(u => {
+    console.log('subscribe user_id', u, get(last_message_id))
     if (u) {
       connect(u)
     }

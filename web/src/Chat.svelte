@@ -6,7 +6,7 @@ import { svgavatar } from './util'
 const { target_user_id, group_id, user_id, chats, send } = redisim
 
   $: {
-    console.log('target_user_id', $target_user_id)
+    console.log('target_user_id', $target_user_id, 'group_id', $group_id)
     if (!$target_user_id) {
       page('/')
     }
@@ -38,7 +38,7 @@ const { target_user_id, group_id, user_id, chats, send } = redisim
     <div class="header"><span on:click={e => [target_user_id.set(''), group_id.set(''), page('/')]}>&lt;</span><span class="title">{$target_user_id}</span></div>
   </div>
   <div class="weui-tab__panel lite-chatbox">
-  {#each $chats.slice(0).reverse() as { message, id, uid, tuid }, i}
+  {#each $chats as { message, id, uid, tuid }, i}
     {#if message.action == 'link'}
       <div class="tips" id={id}>
         <span class="tips-success">{uid == $user_id ? '您' : uid}已成功添加{tuid == $user_id ? '您' : tuid}</span>
