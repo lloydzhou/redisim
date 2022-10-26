@@ -1,32 +1,61 @@
+import db from 'db.js'
 import { writable, derived, get } from './store';
 
-// messages 做一个store，这个只会不断的累加不会减少
-// 衍生出来last_message_id, message_count, 还有针对每个人的列表等信息
-// 联系人也从这个列表衍生出来
+let messagedb
 
-
-// 使用localstorage加上内存中的数组实现
 export const events = writable([])
 export const messages = writable([])
 export const user_id = writable('')
+export const last_message = writable({})
+export const last_message_id = derived([last_message], ([m]) => {
+  return m.id || ''
+})
+
 
 try {
-  let su, sm
+  let su
   if (su = localStorage.getItem('user_id')) {
-    user_id.set(su)
-    sm = JSON.parse(localStorage.getItem(su))
-    if (sm && sm.length) {
-      messages.set(sm)
-    }
+    db.open({
+      server: 'redisim:' + su,
+      version: 1,
+      schema: {
+        message: {
+          key: { keyPath: 'id' },
+          indexes: {
+            tuid: {
+              keyPath: ['tuid', 'created']
+            },
+          }
+        }
+      }
+    }).then(function (s) {
+      messagedb = s.message
+      // 初始化messages列表
+      s.message.query('tuid')
+        .all()
+        .desc()
+        .limit(500) // TODO
+        .execute()
+        .then(results => {
+          // console.log('results', results)
+          messages.set(results)
+          if (results.length > 0) {
+            last_message.set(results[0])
+          }
+        })
+    }).finally(() => {
+      user_id.set(su)
+    });
   }
 } catch (e) {}
-console.log('init', get(user_id), get(messages))
-messages.subscribe((m) => {
-  const uid = get(user_id)
-  if (uid) {
-    localStorage.setItem(uid, JSON.stringify(m))
+
+last_message.subscribe(message => {
+  console.log('last_message')
+  if (messagedb) {
+    messagedb.update(message)
   }
 })
+
 user_id.subscribe((uid) => {
   localStorage.setItem('user_id', uid)
 })
@@ -83,17 +112,6 @@ export const chats = derived([messages, user_id, target_user_id, group_id], ([m,
     return m.filter(t => t.message && ((t.tuid == tuid && t.uid == uid) || (t.uid == tuid && t.tuid == uid)) || t.gid == tuid);
   }
   return []
-})
-export const last_message = derived([messages], ([m]) => {
-  for (let i=m.length-1; i >0; i--) {
-    if (m[i].message) {
-      return m[i]
-    }
-  }
-  return {id: ''}
-})
-export const last_message_id = derived([last_message], ([m]) => {
-  return m.id
 })
 export const unread = derived([messages], ([m]) => {
   return 1
