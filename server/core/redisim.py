@@ -36,6 +36,7 @@ async def login(user_id, passwd=None, *args, **kwargs):
 
 
 async def recive(user_id, **kwargs):
+    # return mid, uid, tuid, gid, message
     pool = await get_redis_pool()
     res = await pool.execute_command("IM.RECIVE", *merge_args(user_id, **kwargs))
     if isinstance(res, list):
@@ -48,14 +49,14 @@ async def recive(user_id, **kwargs):
                 mr = await pool.execute_command("IM.MESSAGE", 'GROUP' if fwt == 'gs' else 'USER', fwc, mid)
                 if mr:
                     mid, message = mr
-                    if 'gs:' == fwt:
-                        m = array_to_dict(*message, gid=fwc)
+                    if 'gs' == fwt:
+                        m = array_to_dict(*message)
                     else:
-                        m = array_to_dict(*message, tuid=fwc, uid=channel[2:])
-                    yield mid, m['uid'], fwc, m
+                        m = array_to_dict(*message)
+                    yield mid, m['uid'], fwc, fwc if 'gs' == fwt else '', m
             else:
-                yield mid, m['uid'], channel[2:], m
-    yield None, None, None, None
+                yield mid, m['uid'], channel[2:], '', m
+    yield None, None, None, None, None
 
 
 async def action(command, *params):

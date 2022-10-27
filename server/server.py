@@ -35,7 +35,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         async def loop():
             start = self.get_argument('last_message_id') or 0
             while self.ws_connection and not self.ws_connection.is_closing():
-                async for mid, uid, tuid, message in recive(user_id, block=10000, count=10, start=start):
+                async for mid, uid, tuid, gid, message in recive(user_id, block=10000, count=10, start=start):
                     if mid:
                         start = mid
                         # print(mid, message)
@@ -43,6 +43,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
                             'id': mid,
                             'uid': uid,
                             'tuid': tuid,
+                            'gid': gid,
                             'message': message,
                         })
             print(mid)
