@@ -20,7 +20,7 @@ try {
   let su
   if (su = localStorage.getItem('user_id')) {
     db.open({
-      server: 'redisim' + su,
+      server: 'redisim:' + su,
       version: 1,
       schema: {
         message: {
@@ -81,12 +81,14 @@ try {
         .distinct()
         .execute()
         .then(users => {
-          // console.log('users', users)
-          return Promise.all(users.map(u => {
-            return u.gid
-              ? s.message.query('gid_created').filter('gid', u.gid).desc().limit(1).execute()
-              : s.message.query('tuid_created').filter('tuid', u.tuid).desc().limit(1).execute()
-          })).then(results => {
+          const group = users.filter(i => i.gid).map(i => i.gid);
+          const user = Array.from(new Set(users.filter(i => !i.gid).map(i => i.uid == su ? i.tuid : i.uid)))
+          // console.log('users', users, group, user)
+          return Promise.all(
+            group.map(gid => s.message.query('gid_created').filter('gid', gid)).concat(
+              user.map(tuid => s.message.query('tuid_created').filter('tuid', tuid))
+            ).map(i => i.desc().limit(1).execute())
+          ).then(results => {
             const c = results.reduce((s, i) => s.concat(i), []).map((i, n) => {
               return ({tuid: i.tuid, gid: i.gid || users[n].gid, message: i})
             }).sort((a, b) => b.message.created - a.message.created)
@@ -166,34 +168,8 @@ last_message.subscribe(message => {
     })
   }
 
-  // const uid = get(user_id)
-  // const {tuid: tu, uid: u, gid} = message
-  // let tuid = u == uid ? tu : u
-  // const { action } = message.message || {}
-  // if (action && uid && tuid) {
-  //   contacts.update(c => {
-  //     return c.filter(i => i.tuid == tuid).length == 0 ? c.concat({ tuid, gid, message }) : c
-  //   })
-  // }
-  // const _conversation = get(conversation)
-  // console.log('conversation', _conversation, gid, tuid, message)
-  // if (gid) {
-  //   if (_conversation.filter(i => i.gid == gid).length > 0) {
-  //     conversation.update(c => c.map(i => i.gid == gid ? ({ tuid, gid: i.gid || gid, message }) : i).sort((a,b) => b.message.created - a.message.created))
-  //   } else {
-  //     conversation.update(c => [{tuid: gid, gid, message}].concat(c))
-  //   }
-  // } else if (tuid) {
-  //   console.log('conversation', tuid)
-  //   if (_conversation.filter(i => i.tuid == tuid).length > 0) {
-  //     conversation.update(c => c.map(i => i.tuid == tuid ? ({ tuid, message }) : i).sort((a,b) => b.message.created - a.message.created))
-  //   } else {
-  //     console.log('conversation add new', tuid)
-  //     conversation.update(c => [{tuid, message}].concat(c))
-  //   }
-  // }
   if (get(target_user_id)) {
-    console.log('update chats', get(chats), get(target_user_id))
+    // console.log('update chats', get(chats), get(target_user_id))
     chats.update(c => [message].concat(c))
   }
 })

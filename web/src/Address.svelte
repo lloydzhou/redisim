@@ -2,22 +2,11 @@
   import page from 'page'
   import redisim from './lib/redisim'
   import { svgavatar, showTime } from './util'
+  import Input from './Input.svelte'
   const { contacts, target_user_id, group_id, link, join } = redisim
-
-  const onLink = e => {
-    const tuid = e.target.value
-    e.target.value = ''
-    link(tuid)
-  }
-
-  const onJoin = e => {
-    const gid = e.target.value
-    e.target.value = ''
-    join(gid)
-  }
 </script>
-<div class="link"><input class="link-name" placeholder="link user" on:change={onLink}></div>
-<div class="link"><input class="link-name" placeholder="join group" on:change={onJoin}></div>
+<Input onOk={tuid => link(tuid)} okText="添加" mode="navbar" placeholder="link user" />
+<Input onOk={gid => join(gid)} okText="加入" mode="navbar" placeholder="join group" />
 {#each $contacts as { tuid: tu, gid, message }, i}
   <div class="item" on:click={e => [target_user_id.set(tu), group_id.set(gid), page('/chat/' + tu)]}>
     <img class="headIcon radius" src={svgavatar(tu)} alt="" />
