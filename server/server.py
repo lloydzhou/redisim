@@ -35,17 +35,18 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         async def loop():
             start = self.get_argument('last_message_id') or 0
             while self.ws_connection and not self.ws_connection.is_closing():
-                async for mid, uid, tuid, message in recive(user_id, block=10000, count=10, start=start):
-                    if mid:
+                async for mid, uid, tuid, gid, message in recive(user_id, block=10000, count=10, start=start):
+                    if mid and mid != start:
                         start = mid
                         # print(mid, message)
                         self.write_message({
                             'id': mid,
                             'uid': uid,
                             'tuid': tuid,
+                            'gid': gid,
                             'message': message,
                         })
-            print(mid)
+            # print(mid)
         # do not block cpu
         asyncio.ensure_future(loop())
 

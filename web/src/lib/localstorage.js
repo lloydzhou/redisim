@@ -6,20 +6,29 @@ import { writable, derived, get } from './store';
 
 
 // 使用localstorage加上内存中的数组实现
+export const events = writable([])
 export const messages = writable([])
 export const user_id = writable('')
+export const last_message = writable({})
+export const last_message_id = derived([last_message], ([m]) => {
+  return m.id || ''
+})
 
 try {
   let su, sm
   if (su = localStorage.getItem('user_id')) {
-    user_id.set(su)
     sm = JSON.parse(localStorage.getItem(su))
     if (sm && sm.length) {
+      last_message.set(sm[0])
       messages.set(sm)
     }
+    user_id.set(su)
   }
 } catch (e) {}
 console.log('init', get(user_id), get(messages))
+last_message.subscribe(message => {
+  messages.update(m => m.concat(message))
+})
 messages.subscribe((m) => {
   const uid = get(user_id)
   if (uid) {
@@ -64,7 +73,7 @@ export const contacts = derived([messages, user_id], ([m, uid]) => {
       else if (action == 'join') {
         if (!s.has(tu)){
           s.add(tu)
-          res.push({ tuid: tu, message: i })
+          res.push({ tuid: tu, gid: tu, message: i })
         }
       }
     })
@@ -82,17 +91,6 @@ export const chats = derived([messages, user_id, target_user_id, group_id], ([m,
     return m.filter(t => t.message && ((t.tuid == tuid && t.uid == uid) || (t.uid == tuid && t.tuid == uid)) || t.gid == tuid);
   }
   return []
-})
-export const last_message = derived([messages], ([m]) => {
-  for (let i=m.length-1; i >0; i--) {
-    if (m[i].message) {
-      return m[i]
-    }
-  }
-  return {id: ''}
-})
-export const last_message_id = derived([last_message], ([m]) => {
-  return m.id
 })
 export const unread = derived([messages], ([m]) => {
   return 1

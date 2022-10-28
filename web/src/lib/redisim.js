@@ -1,9 +1,13 @@
-import {
+// switch to using indexeddb to storage messages
+// import * as storage from './localstorage'
+import * as storage from './indexeddb'
+
+const {
   user_id, target_user_id, group_id,
   messages, last_message, last_message_id,
-  conversation, contacts, chats,
+  conversation, contacts, chats, events,
   get,
-} from './localstorage'
+} = storage
 
 export function RedisIM(url) {
   let ws
@@ -23,9 +27,11 @@ export function RedisIM(url) {
           // console.log(evt, evt.data, typeof evt.data)
           try{
             const message = JSON.parse(evt.data)
-            // console.log('message', message)
-            if (message.id) {
-              messages.update(m => m.concat(message))
+            if (message.message) {
+              message.created = parseInt(message.id.split('-')[0])
+              last_message.set(message)
+            } else if (message.id) {
+              events.set(message)
             }
           } catch(e) {
             console.error(e)
@@ -47,20 +53,20 @@ export function RedisIM(url) {
     const id = +new Date();
     let response = ''
     return new Promise((resolve, reject) => {
-      const unsubscribe = messages.subscribe(messages => {
-        const m = messages.slice(-1).pop()
-        if (m) {
-          if (response == m.id) {
-            resolve(m)
-            unsubscribe()
-          }
-          if (m.response && m.id === id) {
-            response = m.response
-            if (typeof response == "string" && response.split('-').length == 2) {
-            } else {
-              resolve(m.response)
-              unsubscribe()
-            }
+      const unsubscribe = events.subscribe(e => {
+        if (e.response && e.id == id) {
+          response = e.response
+          unsubscribe()
+          if (typeof response == "string" && response.split('-').length == 2) {
+            const unsubscribe = last_message.subscribe(m => {
+              if (m.id == response) {
+                resolve(m)
+                unsubscribe()
+              }
+            })
+            setTimeout(unsubscribe, 3000)
+          } else {
+            resolve(e.response)
           }
         }
       })
@@ -89,9 +95,12 @@ export function RedisIM(url) {
     }
   }
 
-  if (get(user_id)) {
-    connect(get(user_id))
-  }
+  user_id.subscribe(u => {
+    console.log('subscribe user_id', u, get(last_message_id))
+    if (u) {
+      connect(u)
+    }
+  })
 
   // 启动的时候不主动触发连接，而是在用户登录的时候触发，所以监听事件的时候，尝试判断一下
   document.addEventListener("visibilitychange", () => {
