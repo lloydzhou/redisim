@@ -9,13 +9,11 @@ import tornado.autoreload
 import tornado.httpserver
 import tornado.websocket
 from os.path import abspath, dirname, join
-from tornado.options import options, parse_command_line
+from config import options, parse_command_line
 
-from config import load_config
 from core.route import route, routes
 from core.redisim import login, recive, action as im_action
 
-load_config()
 parse_command_line()
 tornado.log.enable_pretty_logging()
 
@@ -72,7 +70,6 @@ if __name__ == "__main__":
     # from modules import *
     root_path = dirname(dirname(abspath(__file__)))
     path = join(root_path, "web", "dist")
-    log_path = join(root_path, "logs")
 
     @route(r"/(chat|mine|faxian|address|login)(.*)")
     class RedirectHandler(tornado.web.RequestHandler):

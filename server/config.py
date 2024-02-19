@@ -1,17 +1,19 @@
 from os.path import dirname, join, isfile
-from tornado.options import define, parse_config_file
+from tornado.options import define, parse_config_file, parse_command_line, options
 
 
-def load_config():
-    define('DEBUG', default=True)
-    define('SERVER_PORT', default=8888)
+define('DEBUG', default=True)
+define('SERVER_PORT', default=8888)
 
-    define('REDIS_HOST', default="localhost")
-    define('REDIS_PORT', default=6379)
+define('REDIS_HOST', default="localhost")
+define('REDIS_PORT', default=6379)
 
-    root_path = dirname(dirname(__file__))
+root_path = dirname(dirname(__file__))
+config_file = join(root_path, "etc", "web_config.conf")
 
-    config_file = join(root_path, "etc", "web_config.conf")
-    if isfile(config_file):
-        parse_config_file(config_file)
-
+define(
+    "CONFIG",
+    help="tornado config file",
+    default=config_file,
+    callback=lambda path: isfile(path) and parse_config_file(path, final=False),
+)
