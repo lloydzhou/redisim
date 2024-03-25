@@ -1,6 +1,9 @@
 import asyncio
 import logging
 import json
+import redisim
+import redis.asyncio as redis
+# import redis
 
 import tornado.log
 import tornado.web
@@ -12,7 +15,52 @@ from os.path import abspath, dirname, join
 from config import options, parse_command_line
 
 from core.route import route, routes
-from core.redisim import login, recive, action as im_action
+
+
+redis_url = "redis://%s:%s" % (options.REDIS_HOST, options.REDIS_PORT)
+pool = redis.ConnectionPool.from_url(redis_url, decode_responses=True)
+client = redis.Redis(connection_pool=pool)
+im = client.im()
+
+
+def array_to_dict(*args, **kwargs):
+    kwargs.update(dict(args[i:i+2] for i in range(0, len(args), 2)))
+    return kwargs
+
+
+async def login(user_id, passwd=None, *args, **kwargs):
+    await im.user(user_id, **kwargs)
+    res = await im.user(user_id)
+    return array_to_dict(*res, uid=user_id)
+
+
+async def recive(user_id, **kwargs):
+    # return mid, uid, tuid, gid, message
+    res = await im.recive(user_id, **kwargs)
+    if isinstance(res, list):
+        channel, messages = res[0]
+        # print('channel', channel)
+        for mid, message in messages:
+            m = array_to_dict(*message, tuid=channel[2:])
+            if 'FW' in m:
+                fwt, fwc = m['FW'].split(':')
+                mr = await im.message(fwc, mid, group=fwt == 'gs')
+                if mr:
+                    mid, message = mr
+                    if 'gs' == fwt:
+                        m = array_to_dict(*message)
+                    else:
+                        m = array_to_dict(*message)
+                    yield mid, m['uid'], fwc, fwc if 'gs' == fwt else '', m
+            else:
+                yield mid, m['uid'], channel[2:], '', m
+    yield None, None, None, None, None
+    await asyncio.sleep(0.1)
+
+
+async def im_action(command, *params):
+    return await getattr(im, command)(*params)
+
 
 parse_command_line()
 tornado.log.enable_pretty_logging()
@@ -27,7 +75,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         user = await login(user_id, name='user1')
 
-        print(user_id, user)
         self.write_message(json.dumps(user))
 
         async def loop():
@@ -56,9 +103,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             if 'action' in message:
                 action, id, params = message['action'], message.get('id'), message.get('params', [])
                 if action.upper() in ['SEND', 'GSEND', 'USER', 'GROUP', 'LINK', 'UNLINK', 'JOIN', 'QUIT']:
-                    response = await im_action('IM.' + action.upper(), *params)
+                    response = await im_action(action, *params)
                     self.write_message({'id': id, 'response': response})
-                    print(response)
+                    # print('write_message', id, response)
         except Exception as e:
             logging.error('error parse message %s %r', message, e)
 
