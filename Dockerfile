@@ -22,12 +22,14 @@ RUN cd /web && yarn install && yarn run build
 
 FROM python:3.8-alpine3.19
 
-RUN pip3 install aioredis==2.0.0 tornado -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
+RUN pip3 install redisim tornado -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
 
 COPY --from=builder /usr/local/bin/redis-server /usr/local/bin/redis-server
 COPY --from=builder /usr/local/bin/redis-cli /usr/local/bin/redis-cli
 COPY --from=builder /server/redisim.so /usr/local/bin/redisim.so
 COPY --from=web /web/dist /web/dist
+
+RUN echo "vm.overcommit_memory=1" | tee -a /etc/sysctl.conf
 
 ADD ./server /server
 

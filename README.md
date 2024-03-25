@@ -69,4 +69,22 @@
 docker run --rm --name=redisim -p 8888:8888 lloydzhou/redisim
 ```
 
+# python sdk
+```
+pip install redisim
+```
+## demo
+```
+import asyncio
+import redis.asyncio as redis
+import redisim
+
+async def main():
+    client = redis.Redis(decode_responses=True)
+    res = await client.im().recive(user_id, **kwargs)
+    print(res)
+
+asyncio.run(main())
+```
+
 
