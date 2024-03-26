@@ -20,18 +20,23 @@ from core.route import route, routes
 redis_url = "redis://%s:%s" % (options.REDIS_HOST, options.REDIS_PORT)
 pool = redis.ConnectionPool.from_url(redis_url, decode_responses=True)
 client = redis.Redis(connection_pool=pool)
-im = client.im()
+# module=False, using lua script
+# module=True, using redis module
+im = client.im(module=True)
 
 
-def array_to_dict(*args, **kwargs):
-    kwargs.update(dict(args[i:i+2] for i in range(0, len(args), 2)))
+def array_to_dict(args, **kwargs):
+    if isinstance(args, (list, tuple)):
+        kwargs.update(dict(args[i:i+2] for i in range(0, len(args), 2)))
+    elif isinstance(args, dict):
+        kwargs.update(args)
     return kwargs
 
 
 async def login(user_id, passwd=None, *args, **kwargs):
     await im.user(user_id, **kwargs)
     res = await im.user(user_id)
-    return array_to_dict(*res, uid=user_id)
+    return array_to_dict(res, uid=user_id)
 
 
 async def recive(user_id, **kwargs):
@@ -41,16 +46,16 @@ async def recive(user_id, **kwargs):
         channel, messages = res[0]
         # print('channel', channel)
         for mid, message in messages:
-            m = array_to_dict(*message, tuid=channel[2:])
+            m = array_to_dict(message, tuid=channel[2:])
             if 'FW' in m:
                 fwt, fwc = m['FW'].split(':')
                 mr = await im.message(fwc, mid, group=fwt == 'gs')
                 if mr:
                     mid, message = mr
                     if 'gs' == fwt:
-                        m = array_to_dict(*message)
+                        m = array_to_dict(message)
                     else:
-                        m = array_to_dict(*message)
+                        m = array_to_dict(message)
                     yield mid, m['uid'], fwc, fwc if 'gs' == fwt else '', m
             else:
                 yield mid, m['uid'], channel[2:], '', m
