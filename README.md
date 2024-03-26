@@ -87,4 +87,12 @@ async def main():
 asyncio.run(main())
 ```
 
+## lua script version
+```
+im = client.im(module=False)
+```
+
+## apache/kvrocks
+
+using lua script version with apache/kvrocks
 
