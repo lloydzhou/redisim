@@ -34,7 +34,8 @@ class IM(IMModule):
             local s_to_user_id = KEYS[1]
             local s_user_id = KEYS[2]
             local r_to_user_id = KEYS[3]
-            local mid = redis.call("XADD", s_to_user_id, "*", unpack(ARGV))
+            local user_id = table.remove(ARGV, 1)
+            local mid = redis.call("XADD", s_to_user_id, "*", "uid", user_id, unpack(ARGV))
             redis.call("XADD", s_user_id, mid, "FW", s_to_user_id)
             redis.call("ZADD", r_to_user_id, "INCR", 1, s_user_id)
             return mid
@@ -46,7 +47,7 @@ class IM(IMModule):
             local s_group_id = KEYS[1]
             local m_group_id = KEYS[2]
             local s_user_id = table.remove(ARGV, 1)
-            local mid = redis.call("XADD", s_group_id, "*", unpack(ARGV))
+            local mid = redis.call("XADD", s_group_id, "*", "uid", s_user_id, unpack(ARGV))
             local members = redis.call("SMEMBERS", m_group_id)
             for i, uid in ipairs(members) do
                 redis.call("XADD", "s:" .. uid, mid, "FW", s_group_id)
@@ -65,7 +66,7 @@ class IM(IMModule):
             local s_group_id = KEYS[4]
             local user_id = ARGV[1]
             local group_id = ARGV[2]
-            local timestamp, ... = unpack(redis.call("TIME"))
+            local timestamp, ms = unpack(redis.call("TIME"))
             -- 1. add user contact;
             redis.call("ZADD", c_user_id, timestamp .. "000", group_id)
             -- 2. add group member;
@@ -122,7 +123,7 @@ class IM(IMModule):
             local s_group_id = KEYS[5]
             local group_id = table.remove(ARGV, 1)
             local user_id = table.remove(ARGV, 1)
-            local timestamp, ... = unpack(redis.call("TIME"))
+            local timestamp, ms = unpack(redis.call("TIME"))
             -- 1. hmset group info
             redis.call("HMSET", i_group_id, "master", user_id, unpack(ARGV))
             -- 2. add user contact;
@@ -138,6 +139,24 @@ class IM(IMModule):
                     redis.call("ZADD", "r:" .. uid, "INCR", 1, s_group_id)
                 end
             end
+            """
+        )
+        self.link_script = self.client.register_script(
+            """
+            local s_to_user_id = KEYS[1]
+            local s_user_id = KEYS[2]
+            local r_to_user_id = KEYS[3]
+            local c_user_id = KEYS[4]
+            local user_id = ARGV[1]
+            local to_user_id = ARGV[2]
+            local timestamp, ms = unpack(redis.call("TIME"))
+            local res = redis.call("ZADD", c_user_id, timestamp, s_to_user_id)
+            if res ~= 0 then
+                local mid = redis.call("XADD", s_to_user_id, "*", "action", "link", "uid", user_id, "tuid", to_user_id)
+                redis.call("XADD", s_user_id, mid, "FW", s_to_user_id)
+                redis.call("ZADD", r_to_user_id, "INCR", 1, s_user_id)
+            end
+            return res
             """
         )
         self.unlink_script = self.client.register_script(
@@ -163,7 +182,7 @@ class IM(IMModule):
     def send(self, user_id, to_user_id, *args, **kwargs):
         return self.send_script(
             keys=[f"s:{to_user_id}", f"s:{user_id}", f"r:{to_user_id}"],
-            args=merge_args("uid", user_id, *args, **kwargs)
+            args=merge_args(user_id, *args, **kwargs)
         )
 
     def gsend(self, user_id, group_id, *args, **kwargs):
@@ -186,7 +205,10 @@ class IM(IMModule):
         return self.group_info_script(keys=[f"gi:{group_id}", f"gm:{group_id}"], args=[])
 
     def link(self, user_id, to_user_id):
-        return self.execute_command("ZADD", f"c:{user_id}", f"{int(time())}000", to_user_id)
+        return self.link_script(
+            keys=[f"s:{to_user_id}", f"s:{user_id}", f"r:{to_user_id}", f"c:{user_id}"],
+            args=[user_id, to_user_id]
+        )
 
     def unlink(self, user_id, to_user_id):
         return self.unlink_script(
