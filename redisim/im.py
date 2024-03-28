@@ -150,7 +150,7 @@ class IM(IMModule):
             local user_id = ARGV[1]
             local to_user_id = ARGV[2]
             local timestamp, ms = unpack(redis.call("TIME"))
-            local res = redis.call("ZADD", c_user_id, timestamp, s_to_user_id)
+            local res = redis.call("ZADD", c_user_id, timestamp, to_user_id)
             if res ~= 0 then
                 local mid = redis.call("XADD", s_to_user_id, "*", "action", "link", "uid", user_id, "tuid", to_user_id)
                 redis.call("XADD", s_user_id, mid, "FW", s_to_user_id)
