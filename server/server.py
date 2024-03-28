@@ -22,7 +22,7 @@ pool = redis.ConnectionPool.from_url(redis_url, decode_responses=True)
 client = redis.Redis(connection_pool=pool)
 # module=False, using lua script
 # module=True, using redis module
-im = client.im(module=True)
+im = client.im(module=False)
 
 
 def array_to_dict(args, **kwargs):
